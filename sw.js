@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qr-cards-v1';
+const CACHE_NAME = 'QR-Cards-Generator-v1';
 const urlsToCache = [
   '/',
   '/index.html',
