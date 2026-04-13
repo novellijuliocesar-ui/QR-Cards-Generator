@@ -217,6 +217,33 @@
             return idStr;
         }
 
+        function limpiarCamposSeleccion() {
+            // Limpiar input de búsqueda
+            const searchInput = document.getElementById('searchInput');
+            searchInput.value = '';
+            
+            // Resetear filtros
+            filteredData = [];
+            
+            // Limpiar y resetear el select a su estado original
+            const select = document.getElementById('activoSelect');
+            select.innerHTML = '<option value="">-- Seleccionar --</option>';
+            
+            // Repoblar con todos los datos
+            excelData.forEach((item, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = `${item.codigo} - ${item.desc.substring(0, 50)}`;
+                select.appendChild(opt);
+            });
+            
+            // Resetear selección actual
+            currentItem = null;
+            
+            // Limpiar caché de imagen
+            cachedImage = null;
+        }
+
         async function generarImagenTarjeta(id, codigo, descripcion) {
             return new Promise(async (resolve) => {
                 const canvas = document.createElement('canvas');
@@ -504,12 +531,17 @@
             }
         });
 
-        // Botón volver
+        // Botón volver - LIMPIA TODOS LOS CAMPOS
         document.getElementById('backBtn').addEventListener('click', function() {
+            // Limpiar todos los campos de búsqueda y selección
+            limpiarCamposSeleccion();
+            
+            // Ocultar pantalla de tarjeta y mostrar selección
             document.getElementById('cardScreen').style.display = 'none';
             document.getElementById('selectionScreen').style.display = 'block';
-            currentItem = null;
-            cachedImage = null;
+            
+            // Mostrar mensaje de confirmación
+            mostrarMensaje('🔄 Campos limpiados. Puedes seleccionar una nueva tarjeta', 'info');
         });
 
         cargarExcel();
