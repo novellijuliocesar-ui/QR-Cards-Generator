@@ -312,11 +312,14 @@
         }
 
         async function actualizarPreview(id, codigo, descripcion) {
+            // Limpiar y generar el QR en el contenedor de preview
             const previewQr = document.getElementById('previewQr');
             previewQr.innerHTML = '';
             const qrCanvas = document.createElement('canvas');
             await QRCode.toCanvas(qrCanvas, id, { width: 180, margin: 1 });
             previewQr.appendChild(qrCanvas);
+            
+            // Actualizar los textos de la vista previa
             document.getElementById('previewNumber').textContent = id;
             document.getElementById('previewCode').textContent = codigo;
             document.getElementById('previewDesc').textContent = descripcion || 'Sin descripción';
@@ -350,7 +353,8 @@
                 poblarSelect(excelData);
                 mostrarMensaje(`✅ ${excelData.length} activos cargados`, 'success');
             } catch(e) {
-                mostrarMensaje('⚠️ No se pudo cargar el Excel. Puedes ingresar datos manualmente.', 'error');
+                console.error('Error cargando Excel:', e);
+                mostrarMensaje('⚠️ No se pudo cargar el Excel. Verifica que el archivo exista en data/', 'error');
             }
         }
 
@@ -362,6 +366,7 @@
             setTimeout(() => msg.style.display = 'none', 3000);
         }
 
+        // Búsqueda con debounce
         document.getElementById('searchInput').addEventListener('input', function() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
@@ -379,59 +384,114 @@
                 );
                 
                 poblarSelect(filtrados);
+                
+                if (filtrados.length === 0) {
+                    mostrarMensaje('🔍 No se encontraron resultados', 'info');
+                }
             }, 300);
         });
 
+        // Al seleccionar un activo, guardar los datos
         document.getElementById('activoSelect').addEventListener('change', function() {
             const idx = this.value;
-            if (idx === "" || !excelData[idx]) return;
+            if (idx === "" || !excelData[idx]) {
+                // Limpiar selección
+                currentId = '';
+                currentCode = '';
+                currentDesc = '';
+                return;
+            }
             const item = excelData[idx];
             currentId = item.id;
             currentCode = item.codigo;
             currentDesc = item.desc;
+            
+            // Mostrar mensaje de confirmación
+            mostrarMensaje(`✅ Seleccionado: ${currentCode}`, 'success');
         });
 
+        // Generar tarjeta
         document.getElementById('generateBtn').addEventListener('click', async function() {
             if (!currentId || !currentCode) {
-                mostrarMensaje('❌ Selecciona un activo', 'error');
+                mostrarMensaje('❌ Primero selecciona un activo de la lista', 'error');
                 return;
             }
+            
             document.getElementById('loading').style.display = 'block';
             document.getElementById('previewContainer').style.display = 'none';
+            
             try {
                 await actualizarPreview(currentId, currentCode, currentDesc);
-                generarImagenTarjeta(currentId, currentCode, currentDesc).then(img => cachedImage = img);
+                const imagen = await generarImagenTarjeta(currentId, currentCode, currentDesc);
+                cachedImage = imagen;
                 document.getElementById('previewContainer').style.display = 'block';
-                mostrarMensaje('✅ Tarjeta generada', 'success');
-            } catch(e) { mostrarMensaje('❌ Error', 'error'); }
-            finally { document.getElementById('loading').style.display = 'none'; }
+                mostrarMensaje('✅ Tarjeta generada correctamente', 'success');
+            } catch(error) {
+                console.error('Error generando tarjeta:', error);
+                mostrarMensaje('❌ Error al generar la tarjeta', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
         });
 
+        // Descargar tarjeta
         document.getElementById('downloadBtn').addEventListener('click', async function() {
-            if (!currentId) { mostrarMensaje('❌ Genera una tarjeta primero', 'error'); return; }
-            mostrarMensaje('🔄 Generando...', 'info');
+            if (!currentId) {
+                mostrarMensaje('❌ Genera una tarjeta primero', 'error');
+                return;
+            }
+            
+            mostrarMensaje('🔄 Preparando descarga...', 'info');
             let img = cachedImage;
-            if (!img) img = await generarImagenTarjeta(currentId, currentCode, currentDesc);
+            if (!img) {
+                img = await generarImagenTarjeta(currentId, currentCode, currentDesc);
+            }
+            
             const link = document.createElement('a');
-            link.download = `${currentCode.replace(/[<>:"/\\|?*]/g, '_')}.png`;
+            const nombreArchivo = `${currentCode.replace(/[<>:"/\\|?*]/g, '_')}.png`;
+            link.download = nombreArchivo;
             link.href = img;
             link.click();
-            mostrarMensaje('📥 Descargada', 'success');
+            mostrarMensaje('📥 Tarjeta descargada', 'success');
         });
 
+        // Compartir tarjeta
         document.getElementById('shareBtn').addEventListener('click', async function() {
-            if (!currentId) { mostrarMensaje('❌ Genera una tarjeta primero', 'error'); return; }
-            mostrarMensaje('🔄 Preparando...', 'info');
+            if (!currentId) {
+                mostrarMensaje('❌ Genera una tarjeta primero', 'error');
+                return;
+            }
+            
+            mostrarMensaje('🔄 Preparando para compartir...', 'info');
             let img = cachedImage;
-            if (!img) img = await generarImagenTarjeta(currentId, currentCode, currentDesc);
+            if (!img) {
+                img = await generarImagenTarjeta(currentId, currentCode, currentDesc);
+            }
+            
             const blob = await (await fetch(img)).blob();
             const file = new File([blob], 'tarjeta.png', { type: 'image/png' });
-            if (navigator.share && navigator.canShare?.({ files: [file] })) {
-                await navigator.share({ title: 'Tarjeta QR', files: [file] });
-                mostrarMensaje('📤 Compartida', 'success');
-            } else { mostrarMensaje('📱 Compartir no soportado, se descargará', 'info'); document.getElementById('downloadBtn').click(); }
+            
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'Tarjeta QR',
+                        text: `Tarjeta para ${currentCode}`,
+                        files: [file]
+                    });
+                    mostrarMensaje('📤 Compartido correctamente', 'success');
+                } catch(e) {
+                    if (e.name !== 'AbortError') {
+                        mostrarMensaje('No se pudo compartir, se descargará', 'info');
+                        document.getElementById('downloadBtn').click();
+                    }
+                }
+            } else {
+                mostrarMensaje('📱 Compartir no soportado, se descargará', 'info');
+                document.getElementById('downloadBtn').click();
+            }
         });
 
+        // Inicializar
         cargarExcel();
     </script>
 </body>
