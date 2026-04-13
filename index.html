@@ -154,7 +154,7 @@
         <div class="form-card">
             <div class="search-section">
                 <label>🔍 Buscar (por ID o Código)</label>
-                <input type="text" id="searchInput" placeholder="Ej: 162511 o CD_SALLENT..." autocomplete="off">
+                <input type="text" id="searchInput" placeholder="Ej: 162514 o TALLER..." autocomplete="off">
             </div>
             <div class="form-group">
                 <label>📋 Seleccionar activo</label>
@@ -186,8 +186,9 @@
     </div>
 
     <script>
-        let excelData = [];
-        let currentId = '', currentCode = '', currentDesc = '';
+        let excelData = [];           // Array original completo
+        let filteredData = [];        // Array filtrado por búsqueda
+        let currentItem = null;       // Item actualmente seleccionado
         let cachedImage = null;
         let searchTimeout = null;
 
@@ -312,25 +313,26 @@
         }
 
         async function actualizarPreview(id, codigo, descripcion) {
-            // Limpiar y generar el QR en el contenedor de preview
             const previewQr = document.getElementById('previewQr');
             previewQr.innerHTML = '';
             const qrCanvas = document.createElement('canvas');
             await QRCode.toCanvas(qrCanvas, id, { width: 180, margin: 1 });
             previewQr.appendChild(qrCanvas);
-            
-            // Actualizar los textos de la vista previa
             document.getElementById('previewNumber').textContent = id;
             document.getElementById('previewCode').textContent = codigo;
             document.getElementById('previewDesc').textContent = descripcion || 'Sin descripción';
         }
 
-        function poblarSelect(items) {
+        function poblarSelect() {
             const select = document.getElementById('activoSelect');
+            const dataToShow = filteredData.length > 0 ? filteredData : excelData;
+            
             select.innerHTML = '<option value="">-- Seleccionar --</option>';
-            items.forEach((item, i) => {
+            dataToShow.forEach((item, i) => {
                 const opt = document.createElement('option');
-                opt.value = i;
+                // Guardamos el índice REAL en el array original
+                const realIndex = excelData.findIndex(original => original.id === item.id && original.codigo === item.codigo);
+                opt.value = realIndex;
                 opt.textContent = `${item.codigo} - ${item.desc.substring(0, 50)}`;
                 select.appendChild(opt);
             });
@@ -340,6 +342,8 @@
             mostrarMensaje('Cargando...', 'info');
             try {
                 const response = await fetch('data/DOC-20251215-WA0003..xlsx');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
                 const data = await response.arrayBuffer();
                 const workbook = XLSX.read(data);
                 const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
@@ -350,11 +354,12 @@
                     desc: r.DESCRIPCION ? String(r.DESCRIPCION).trim() : 'Sin descripción'
                 }));
                 
-                poblarSelect(excelData);
+                filteredData = [];
+                poblarSelect();
                 mostrarMensaje(`✅ ${excelData.length} activos cargados`, 'success');
             } catch(e) {
-                console.error('Error cargando Excel:', e);
-                mostrarMensaje('⚠️ No se pudo cargar el Excel. Verifica que el archivo exista en data/', 'error');
+                console.error('Error:', e);
+                mostrarMensaje('⚠️ No se pudo cargar el Excel. Verifica la ruta data/', 'error');
             }
         }
 
@@ -366,53 +371,51 @@
             setTimeout(() => msg.style.display = 'none', 3000);
         }
 
-        // Búsqueda con debounce
+        // Búsqueda
         document.getElementById('searchInput').addEventListener('input', function() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 const term = this.value.toLowerCase().trim();
                 
                 if (!term) {
-                    poblarSelect(excelData);
+                    filteredData = [];
+                    poblarSelect();
                     return;
                 }
                 
-                const filtrados = excelData.filter(item => 
+                filteredData = excelData.filter(item => 
                     item.id === term || 
                     item.id.includes(term) || 
-                    item.codigo.toLowerCase().includes(term)
+                    item.codigo.toLowerCase().includes(term) ||
+                    item.desc.toLowerCase().includes(term)
                 );
                 
-                poblarSelect(filtrados);
+                poblarSelect();
                 
-                if (filtrados.length === 0) {
+                if (filteredData.length === 0) {
                     mostrarMensaje('🔍 No se encontraron resultados', 'info');
+                } else {
+                    mostrarMensaje(`🔍 ${filteredData.length} resultados encontrados`, 'success');
                 }
             }, 300);
         });
 
-        // Al seleccionar un activo, guardar los datos
+        // Selección - CORREGIDO: usa el índice real del array original
         document.getElementById('activoSelect').addEventListener('change', function() {
-            const idx = this.value;
-            if (idx === "" || !excelData[idx]) {
-                // Limpiar selección
-                currentId = '';
-                currentCode = '';
-                currentDesc = '';
+            const realIndex = parseInt(this.value);
+            
+            if (isNaN(realIndex) || realIndex < 0 || !excelData[realIndex]) {
+                currentItem = null;
                 return;
             }
-            const item = excelData[idx];
-            currentId = item.id;
-            currentCode = item.codigo;
-            currentDesc = item.desc;
             
-            // Mostrar mensaje de confirmación
-            mostrarMensaje(`✅ Seleccionado: ${currentCode}`, 'success');
+            currentItem = excelData[realIndex];
+            mostrarMensaje(`✅ Seleccionado: ${currentItem.codigo} - ${currentItem.desc.substring(0, 40)}`, 'success');
         });
 
         // Generar tarjeta
         document.getElementById('generateBtn').addEventListener('click', async function() {
-            if (!currentId || !currentCode) {
+            if (!currentItem) {
                 mostrarMensaje('❌ Primero selecciona un activo de la lista', 'error');
                 return;
             }
@@ -421,22 +424,22 @@
             document.getElementById('previewContainer').style.display = 'none';
             
             try {
-                await actualizarPreview(currentId, currentCode, currentDesc);
-                const imagen = await generarImagenTarjeta(currentId, currentCode, currentDesc);
+                await actualizarPreview(currentItem.id, currentItem.codigo, currentItem.desc);
+                const imagen = await generarImagenTarjeta(currentItem.id, currentItem.codigo, currentItem.desc);
                 cachedImage = imagen;
                 document.getElementById('previewContainer').style.display = 'block';
                 mostrarMensaje('✅ Tarjeta generada correctamente', 'success');
             } catch(error) {
-                console.error('Error generando tarjeta:', error);
+                console.error('Error:', error);
                 mostrarMensaje('❌ Error al generar la tarjeta', 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
         });
 
-        // Descargar tarjeta
+        // Descargar
         document.getElementById('downloadBtn').addEventListener('click', async function() {
-            if (!currentId) {
+            if (!currentItem) {
                 mostrarMensaje('❌ Genera una tarjeta primero', 'error');
                 return;
             }
@@ -444,20 +447,20 @@
             mostrarMensaje('🔄 Preparando descarga...', 'info');
             let img = cachedImage;
             if (!img) {
-                img = await generarImagenTarjeta(currentId, currentCode, currentDesc);
+                img = await generarImagenTarjeta(currentItem.id, currentItem.codigo, currentItem.desc);
             }
             
             const link = document.createElement('a');
-            const nombreArchivo = `${currentCode.replace(/[<>:"/\\|?*]/g, '_')}.png`;
+            const nombreArchivo = `${currentItem.codigo.replace(/[<>:"/\\|?*]/g, '_')}.png`;
             link.download = nombreArchivo;
             link.href = img;
             link.click();
             mostrarMensaje('📥 Tarjeta descargada', 'success');
         });
 
-        // Compartir tarjeta
+        // Compartir
         document.getElementById('shareBtn').addEventListener('click', async function() {
-            if (!currentId) {
+            if (!currentItem) {
                 mostrarMensaje('❌ Genera una tarjeta primero', 'error');
                 return;
             }
@@ -465,7 +468,7 @@
             mostrarMensaje('🔄 Preparando para compartir...', 'info');
             let img = cachedImage;
             if (!img) {
-                img = await generarImagenTarjeta(currentId, currentCode, currentDesc);
+                img = await generarImagenTarjeta(currentItem.id, currentItem.codigo, currentItem.desc);
             }
             
             const blob = await (await fetch(img)).blob();
@@ -475,13 +478,13 @@
                 try {
                     await navigator.share({
                         title: 'Tarjeta QR',
-                        text: `Tarjeta para ${currentCode}`,
+                        text: `Tarjeta para ${currentItem.codigo}`,
                         files: [file]
                     });
                     mostrarMensaje('📤 Compartido correctamente', 'success');
                 } catch(e) {
                     if (e.name !== 'AbortError') {
-                        mostrarMensaje('No se pudo compartir, se descargará', 'info');
+                        mostrarMensaje('No se pudo compartir', 'info');
                         document.getElementById('downloadBtn').click();
                     }
                 }
@@ -491,7 +494,6 @@
             }
         });
 
-        // Inicializar
         cargarExcel();
     </script>
 </body>
