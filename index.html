@@ -372,7 +372,7 @@
         let cachedImage = null;
         let searchTimeout = null;
 
-        // Sistema de notificaciones
+        // Sistema de notificaciones - SOLO 5 TIPOS
         function mostrarNotificacion(texto, tipo) {
             const notificationArea = document.getElementById('notificationArea');
             const notification = document.createElement('div');
@@ -387,7 +387,7 @@
                     icono = '❌';
                     break;
                 case 'info':
-                    icono = 'ℹ️';
+                    icono = '🔍';
                     break;
             }
             
@@ -409,7 +409,7 @@
             }, 3000);
         }
 
-        // Modo oscuro
+        // Modo oscuro (sin notificación)
         function initDarkMode() {
             const savedMode = localStorage.getItem('darkMode');
             const darkModeToggle = document.getElementById('darkModeToggle');
@@ -424,7 +424,7 @@
                 const isDarkMode = document.body.classList.contains('dark-mode');
                 localStorage.setItem('darkMode', isDarkMode ? 'enabled' : 'disabled');
                 darkModeToggle.textContent = isDarkMode ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
-                mostrarNotificacion(isDarkMode ? '🌙 Modo oscuro activado' : '☀️ Modo claro activado', 'info');
+                // SIN NOTIFICACIÓN
             });
         }
 
@@ -593,7 +593,7 @@
         }
 
         async function cargarExcel() {
-            mostrarNotificacion('Cargando archivo Excel...', 'info');
+            // SIN NOTIFICACIÓN de carga
             try {
                 const response = await fetch('data/DOC-20251215-WA0003..xlsx');
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -610,10 +610,12 @@
                 
                 filteredData = [];
                 poblarSelect();
-                mostrarNotificacion(`✅ ${excelData.length} activos cargados`, 'success');
+                // ✅ NOTIFICACIÓN: activos cargados
+                mostrarNotificacion(`${excelData.length} activos cargados`, 'success');
             } catch(e) {
                 console.error('Error:', e);
-                mostrarNotificacion('⚠️ Error al cargar Excel', 'error');
+                // ⚠️ NOTIFICACIÓN: error al cargar Excel
+                mostrarNotificacion('Error al cargar Excel', 'error');
             }
         }
 
@@ -639,14 +641,16 @@
                 poblarSelect();
                 
                 if (filteredData.length === 0) {
-                    mostrarNotificacion('🔍 No se encontraron resultados', 'info');
+                    // 🔍 NOTIFICACIÓN: no se encontraron resultados
+                    mostrarNotificacion('No se encontraron resultados', 'info');
                 } else {
-                    mostrarNotificacion(`🔍 ${filteredData.length} resultados`, 'success');
+                    // 🔍 NOTIFICACIÓN: X resultados
+                    mostrarNotificacion(`${filteredData.length} resultados`, 'success');
                 }
             }, 300);
         });
 
-        // Selección
+        // Selección - SIN NOTIFICACIÓN
         document.getElementById('activoSelect').addEventListener('change', function() {
             const realIndex = parseInt(this.value);
             
@@ -656,13 +660,14 @@
             }
             
             currentItem = excelData[realIndex];
-            mostrarNotificacion(`✅ ${currentItem.codigo}`, 'success');
+            // SIN NOTIFICACIÓN de selección
         });
 
         // Generar y mostrar tarjeta
         document.getElementById('generateBtn').addEventListener('click', async function() {
             if (!currentItem) {
-                mostrarNotificacion('❌ Selecciona un activo', 'error');
+                // ❌ NOTIFICACIÓN: selecciona un activo
+                mostrarNotificacion('Selecciona un activo', 'error');
                 return;
             }
             
@@ -675,21 +680,20 @@
                 const imagen = await generarImagenTarjeta(currentItem.id, currentItem.codigo, currentItem.desc);
                 cachedImage = imagen;
                 document.getElementById('cardScreen').style.display = 'block';
-                mostrarNotificacion('✅ Tarjeta generada', 'success');
+                // SIN NOTIFICACIÓN de éxito
             } catch(error) {
                 console.error('Error:', error);
-                mostrarNotificacion('❌ Error al generar', 'error');
+                // SIN NOTIFICACIÓN de error
                 document.getElementById('selectionScreen').style.display = 'block';
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
         });
 
-        // Descargar desde pantalla de tarjeta
+        // Descargar - SIN NOTIFICACIÓN
         document.getElementById('downloadCardBtn').addEventListener('click', async function() {
             if (!currentItem) return;
             
-            mostrarNotificacion('🔄 Descargando...', 'info');
             let img = cachedImage;
             if (!img) {
                 img = await generarImagenTarjeta(currentItem.id, currentItem.codigo, currentItem.desc);
@@ -700,14 +704,13 @@
             link.download = nombreArchivo;
             link.href = img;
             link.click();
-            mostrarNotificacion('📥 Descargada', 'success');
+            // SIN NOTIFICACIÓN
         });
 
-        // Compartir desde pantalla de tarjeta
+        // Compartir - SIN NOTIFICACIÓN
         document.getElementById('shareCardBtn').addEventListener('click', async function() {
             if (!currentItem) return;
             
-            mostrarNotificacion('🔄 Preparando...', 'info');
             let img = cachedImage;
             if (!img) {
                 img = await generarImagenTarjeta(currentItem.id, currentItem.codigo, currentItem.desc);
@@ -723,24 +726,21 @@
                         text: `Tarjeta para ${currentItem.codigo}`,
                         files: [file]
                     });
-                    mostrarNotificacion('📤 Compartido', 'success');
+                    // SIN NOTIFICACIÓN
                 } catch(e) {
-                    if (e.name !== 'AbortError') {
-                        mostrarNotificacion('No se pudo compartir', 'info');
-                    }
+                    // SIN NOTIFICACIÓN
                 }
             } else {
-                mostrarNotificacion('📱 Descargando...', 'info');
                 document.getElementById('downloadCardBtn').click();
             }
         });
 
-        // Botón volver
+        // Botón volver - SIN NOTIFICACIÓN
         document.getElementById('backBtn').addEventListener('click', function() {
             limpiarCamposSeleccion();
             document.getElementById('cardScreen').style.display = 'none';
             document.getElementById('selectionScreen').style.display = 'block';
-            mostrarNotificacion('🔄 Campos limpiados', 'info');
+            // SIN NOTIFICACIÓN
         });
 
         // Inicializar
