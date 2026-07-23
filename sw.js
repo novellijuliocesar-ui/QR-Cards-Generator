@@ -1,4 +1,5 @@
 const CACHE_NAME = 'qr-cards-v3';
+const BASE_PATH = '/QR-Cards-Generator/';
 const ASSETS_TO_CACHE = [
     BASE_PATH,
     BASE_PATH + 'index.html',
