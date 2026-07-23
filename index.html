@@ -6,37 +6,28 @@
     <meta name="theme-color" content="#F2C200">
     <meta name="description" content="Generador de Tarjetas QR y Buscador de Stock">
     <title>QR Cards - Generador y Stock</title>
-    
-    <!-- MANIFEST -->
     <link rel="manifest" href="/QR-Cards-Generator/manifest.json">
-    
-    <!-- ===== CSS SEPARADO POR MÓDULOS ===== -->
-    <link rel="stylesheet" href="/mi-app-qr/css/base.css">
-    <link rel="stylesheet" href="/mi-app-qr/css/qr-generator.css">
-    <link rel="stylesheet" href="/mi-app-qr/css/stock-finder.css">
-    
+
+    <!-- ===== CSS EXTERNOS ===== -->
+    <link rel="stylesheet" href="/QR-Cards-Generator/css/base.css">
+    <link rel="stylesheet" href="/QR-Cards-Generator/css/qr-generator.css">
+    <link rel="stylesheet" href="/QR-Cards-Generator/css/stock-finder.css">
+
     <!-- Bibliotecas externas -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container" id="app">
-        
+
         <!-- ===== HEADER CON NAVEGACIÓN ===== -->
         <header class="app-header">
             <div class="header-top">
                 <h1>📱 QR Cards</h1>
                 <div class="nav-arrows">
-                    <!-- Flecha izquierda (oculta en la primera pantalla) -->
-                    <button id="navPrev" class="nav-arrow" disabled aria-label="Pantalla anterior">
-                        ◀
-                    </button>
-                    <!-- Indicador de pantalla -->
+                    <button id="navPrev" class="nav-arrow" disabled>◀</button>
                     <span id="screenIndicator" class="screen-indicator">1/2</span>
-                    <!-- Flecha derecha -->
-                    <button id="navNext" class="nav-arrow" aria-label="Siguiente pantalla">
-                        ▶
-                    </button>
+                    <button id="navNext" class="nav-arrow">▶</button>
                 </div>
             </div>
             <div class="header-bottom">
@@ -46,96 +37,71 @@
 
         <!-- ===== CONTENEDOR DE PANTALLAS ===== -->
         <div class="screens-container">
-            
+
             <!-- ===== PANTALLA 1: GENERADOR QR ===== -->
             <section id="screenQR" class="screen active" data-screen="qr">
-                <div class="selection-screen">
-                    <div id="messageQR" class="message" role="alert" aria-live="polite"></div>
+                <div id="messageQR" class="message"></div>
 
-                    <div class="search-section">
-                        <label for="searchInputQR">🔍 Buscar (por ID o Código)</label>
-                        <input 
-                            type="text" 
-                            id="searchInputQR" 
-                            placeholder="Ej: 162514 o TALLER..." 
-                            autocomplete="off"
-                            aria-label="Buscar activo"
-                        >
+                <div class="search-section">
+                    <label for="searchInputQR">🔍 Buscar (por ID o Código)</label>
+                    <input type="text" id="searchInputQR" placeholder="Ej: 162514 o TALLER..." autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label for="activoSelectQR">📋 Seleccionar activo</label>
+                    <select id="activoSelectQR">
+                        <option value="">-- Cargando... --</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" id="generateBtnQR">✨ Generar Tarjeta</button>
+
+                <div id="cardContainerQR">
+                    <div id="cardNumberQR" class="card-number"></div>
+                    <div id="cardQrQR" class="card-qr"></div>
+                    <div id="cardCodeQR" class="card-code"></div>
+                    <div id="cardDescQR" class="card-desc"></div>
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" id="downloadCardBtnQR">📥 Descargar</button>
+                        <button class="btn btn-success" id="shareCardBtnQR">📤 Compartir</button>
                     </div>
+                </div>
 
-                    <div class="form-group">
-                        <label for="activoSelectQR">📋 Seleccionar activo</label>
-                        <select id="activoSelectQR" aria-label="Lista de activos">
-                            <option value="">-- Cargando... --</option>
-                        </select>
-                    </div>
-
-                    <button class="btn btn-primary" id="generateBtnQR">
-                        ✨ Generar Tarjeta
-                    </button>
-
-                    <!-- Tarjeta generada (se muestra dentro de la misma pantalla) -->
-                    <div id="cardContainerQR" class="card-container" style="display: none; margin-top: 20px;">
-                        <div id="cardNumberQR" class="card-number"></div>
-                        <div id="cardQrQR" class="card-qr"></div>
-                        <div id="cardCodeQR" class="card-code"></div>
-                        <div id="cardDescQR" class="card-desc"></div>
-                        <div class="action-buttons">
-                            <button class="btn btn-secondary" id="downloadCardBtnQR">📥 Descargar</button>
-                            <button class="btn btn-success" id="shareCardBtnQR">📤 Compartir</button>
-                        </div>
-                    </div>
-
-                    <div id="loadingQR" class="loading" style="display: none;">
-                        <div class="spinner"></div>
-                        <p>Generando tarjeta...</p>
-                    </div>
+                <div id="loadingQR" class="loading">
+                    <div class="spinner"></div>
+                    <p>Generando tarjeta...</p>
                 </div>
             </section>
 
             <!-- ===== PANTALLA 2: BUSCADOR DE STOCK ===== -->
             <section id="screenStock" class="screen" data-screen="stock">
-                <div class="stock-screen">
-                    <div class="header-stock">
-                        <h2>📦 Buscador de Stock</h2>
-                        <p>Consulta el stock de productos en tiempo real</p>
-                    </div>
+                <div class="header-stock">
+                    <h2>📦 Buscador de Stock</h2>
+                    <p>Consulta el stock de productos en tiempo real</p>
+                </div>
 
-                    <div id="messageStock" class="message" role="alert" aria-live="polite"></div>
+                <div id="messageStock" class="message"></div>
 
-                    <div class="search-section">
-                        <label for="searchInputStock">🔎 Buscar producto (por código o descripción)</label>
-                        <input 
-                            type="text" 
-                            id="searchInputStock" 
-                            placeholder="Ej: 12345 o 'martillo'" 
-                            autocomplete="off"
-                            aria-label="Buscar producto en stock"
-                        >
-                    </div>
+                <div class="search-section">
+                    <label for="searchInputStock">🔎 Buscar producto (por código o descripción)</label>
+                    <input type="text" id="searchInputStock" placeholder="Ej: 12345 o 'martillo'" autocomplete="off">
+                </div>
 
-                    <button class="btn btn-primary" id="searchStockBtn">
-                        🔍 Buscar en Stock
-                    </button>
+                <button class="btn btn-primary" id="searchStockBtn">🔍 Buscar en Stock</button>
 
-                    <!-- Resultados de la búsqueda -->
-                    <div id="resultsContainerStock" class="results-container" style="display: none; margin-top: 20px;">
-                        <h3>Resultados de la búsqueda</h3>
-                        <div id="stockResultsList" class="stock-results-list">
-                            <!-- Los resultados se inyectan aquí dinámicamente -->
-                        </div>
-                    </div>
+                <div id="resultsContainerStock">
+                    <h3>Resultados de la búsqueda</h3>
+                    <div id="stockResultsList" class="stock-results-list"></div>
+                </div>
 
-                    <div id="loadingStock" class="loading" style="display: none;">
-                        <div class="spinner"></div>
-                        <p>Buscando en el stock...</p>
-                    </div>
+                <div id="loadingStock" class="loading">
+                    <div class="spinner"></div>
+                    <p>Buscando en el stock...</p>
                 </div>
             </section>
 
         </div>
 
-        <!-- ===== FOOTER (opcional) ===== -->
         <footer class="app-footer">
             <p>© 2026 - QR Cards Generator</p>
         </footer>
