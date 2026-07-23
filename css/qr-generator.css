@@ -2,13 +2,12 @@
    QR-GENERATOR.CSS - ESTILOS DEL GENERADOR QR
    ============================================ */
 
-/* ---------- TARJETA ---------- */
+/* ---------- CONTENEDOR DE LA TARJETA ---------- */
 #cardContainerQR {
     background: #F2C200;
     border-radius: 20px;
     padding: 30px 20px;
     margin-top: 20px;
-    box-shadow: 0 4px 15px rgba(242, 194, 0, 0.3);
     display: none;
 }
 
@@ -28,6 +27,7 @@
     }
 }
 
+/* ---------- NÚMERO ---------- */
 #cardNumberQR {
     font-size: 24px;
     font-weight: bold;
@@ -40,6 +40,7 @@
     font-family: 'Courier New', monospace;
 }
 
+/* ---------- QR ---------- */
 #cardQrQR {
     margin: 20px 0;
     display: flex;
@@ -56,6 +57,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* ---------- CÓDIGO ---------- */
 #cardCodeQR {
     font-size: 16px;
     font-weight: bold;
@@ -69,6 +71,7 @@
     word-break: break-all;
 }
 
+/* ---------- DESCRIPCIÓN ---------- */
 #cardDescQR {
     font-size: 13px;
     color: #1a1a2e;
