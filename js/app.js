@@ -1,26 +1,30 @@
+// ============================================================
+//  CONTROLADOR PRINCIPAL
+// ============================================================
+
 import { initQR } from './modules/qr-generator.js';
 import { initStock } from './modules/stock-finder.js';
 import { initSwipeNavigation } from './shared/swipe-navigation.js';
 
-// ========== CONTROLADOR PRINCIPAL ==========
-
+// ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Iniciando QR Cards Generator...');
-    
+
     const nav = initNavigation();
-    
+
     initSwipeNavigation(
         nav.goTo,
         () => nav.currentIndex,
         () => nav.totalScreens
     );
-    
+
     initQR();
     initStock();
-    
+
     console.log('✅ Aplicación inicializada');
 });
 
+// ===== NAVEGACIÓN =====
 function initNavigation() {
     const screens = document.querySelectorAll('.screen');
     const navPrev = document.getElementById('navPrev');
