@@ -1,5 +1,6 @@
 import { initQR } from './modules/qr-generator.js';
 import { initStock } from './modules/stock-finder.js';
+import { initSwipeNavigation } from './shared/swipe-navigation.js';
 
 // ========== CONTROLADOR PRINCIPAL ==========
 
@@ -7,9 +8,16 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Iniciando QR Cards Generator...');
     
     // Inicializar navegación
-    initNavigation();
+    const nav = initNavigation();
     
-    // Inicializar módulos (cada uno carga su propio archivo)
+    // Inicializar swipe
+    initSwipeNavigation(
+        nav.goTo,
+        () => nav.currentIndex,
+        () => nav.totalScreens
+    );
+    
+    // Inicializar módulos
     initQR();
     initStock();
     
@@ -24,6 +32,7 @@ function initNavigation() {
     const screenTitle = document.getElementById('screenTitle');
     const screenTitles = ['Generador de QR', 'Buscador de Stock'];
     let currentIndex = 0;
+    const totalScreens = screens.length;
 
     function goTo(index) {
         if (index < 0 || index >= screens.length) return;
@@ -39,4 +48,10 @@ function initNavigation() {
     navPrev.addEventListener('click', () => goTo(currentIndex - 1));
     navNext.addEventListener('click', () => goTo(currentIndex + 1));
     goTo(0);
+
+    return {
+        goTo,
+        currentIndex,
+        totalScreens
+    };
 }
