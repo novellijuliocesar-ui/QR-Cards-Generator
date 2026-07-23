@@ -12,7 +12,7 @@ export class ExcelLoader {
     /**
      * Carga el archivo Excel desde la ruta especificada
      */
-    async cargar(ruta = 'data/DOC-20251215-WA0003..xlsx') {
+    async cargar(ruta = './data/DOC-20251215-WA0003..xlsx') {
         if (this.estaCargando) return;
         this.estaCargando = true;
 
