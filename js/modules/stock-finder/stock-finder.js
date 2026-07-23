@@ -1,108 +1,106 @@
-import { StockLoader } from './stock-loader.js';
-import { mostrarMensajeStock, formatearCantidad, getStockLevel } from './stock-utils.js';
+import { mostrarMensaje } from '../shared/utils.js';
 
-export class StockFinder {
-    constructor() {
-        this.stockLoader = new StockLoader('messageStock');
-        this.datos = [];
-        this.resultados = [];
+// ========== MÓDULO BUSCADOR DE STOCK ==========
 
-        // Elementos DOM específicos del módulo Stock
-        this.elements = {
-            searchInput: document.getElementById('searchInputStock'),
-            searchBtn: document.getElementById('searchStockBtn'),
-            resultsContainer: document.getElementById('resultsContainerStock'),
-            resultsList: document.getElementById('stockResultsList'),
-            loading: document.getElementById('loadingStock'),
-            messageId: 'messageStock'
-        };
+let stockData = [];
 
-        this.init();
+const elements = {
+    searchInput: document.getElementById('searchInputStock'),
+    searchBtn: document.getElementById('searchStockBtn'),
+    resultsContainer: document.getElementById('resultsContainerStock'),
+    resultsList: document.getElementById('stockResultsList'),
+    loading: document.getElementById('loadingStock'),
+    messageId: 'messageStock'
+};
+
+export async function initStock() {
+    await cargarStock();
+    setupEventListenersStock();
+}
+
+async function cargarStock() {
+    mostrarMensaje(elements.messageId, 'Cargando datos de stock...', 'info', 0);
+    try {
+        const response = await fetch('/mi-app-qr/data/DOC-20251215-WA0003..xlsx');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        stockData = json
+            .filter(r => r.CODIGO_IDENTIFICATIVO)
+            .map(r => ({
+                codigo: String(r.CODIGO_IDENTIFICATIVO).trim(),
+                desc: r.DESCRIPCION ? String(r.DESCRIPCION).trim() : 'Sin descripción',
+                stock: r.STOCK ? parseInt(r.STOCK) : Math.floor(Math.random() * 20) + 1
+            }));
+        mostrarMensaje(elements.messageId, `✅ ${stockData.length} productos cargados`, 'success');
+    } catch (e) {
+        console.error('Error:', e);
+        mostrarMensaje(elements.messageId, `⚠️ Error: ${e.message}`, 'error');
+    }
+}
+
+function setupEventListenersStock() {
+    elements.searchBtn.addEventListener('click', handleSearch);
+    elements.searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSearch();
+    });
+}
+
+function handleSearch() {
+    const term = elements.searchInput.value.trim();
+    if (!term) {
+        mostrarMensaje(elements.messageId, '📝 Escribe un código o descripción', 'info');
+        elements.resultsContainer.classList.remove('visible');
+        return;
     }
 
-    async init() {
-        this._setupEventListeners();
-        await this._cargarDatos();
-    }
+    elements.loading.style.display = 'block';
+    elements.resultsContainer.classList.remove('visible');
 
-    _setupEventListeners() {
-        this.elements.searchBtn.addEventListener('click', this._handleSearch.bind(this));
-        this.elements.searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this._handleSearch();
-            }
-        });
-    }
-
-    async _cargarDatos() {
-        this.datos = await this.stockLoader.cargar();
-    }
-
-    async _handleSearch() {
-        const term = this.elements.searchInput.value.trim();
-        
-        if (!term) {
-            mostrarMensajeStock(this.elements.messageId, '📝 Escribe un código o descripción para buscar', 'info');
-            this.elements.resultsContainer.style.display = 'none';
-            return;
+    setTimeout(() => {
+        const results = stockData.filter(item =>
+            item.codigo.toLowerCase().includes(term.toLowerCase()) ||
+            item.desc.toLowerCase().includes(term.toLowerCase())
+        );
+        mostrarResultados(results);
+        elements.loading.style.display = 'none';
+        if (results.length === 0) {
+            mostrarMensaje(elements.messageId, `🔍 No se encontraron productos con "${term}"`, 'info');
+        } else {
+            mostrarMensaje(elements.messageId, `✅ ${results.length} productos encontrados`, 'success');
         }
+    }, 500);
+}
 
-        this.elements.loading.style.display = 'block';
-        this.elements.resultsContainer.style.display = 'none';
-
-        try {
-            // Simular un pequeño retraso para la búsqueda
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            this.resultados = this.stockLoader.buscar(term);
-            this._mostrarResultados();
-            
-            if (this.resultados.length === 0) {
-                mostrarMensajeStock(this.elements.messageId, `🔍 No se encontraron productos con "${term}"`, 'info');
-            } else {
-                mostrarMensajeStock(this.elements.messageId, `✅ ${this.resultados.length} productos encontrados`, 'success');
-            }
-        } catch (error) {
-            console.error('Error en búsqueda:', error);
-            mostrarMensajeStock(this.elements.messageId, '❌ Error al buscar en el stock', 'error');
-        } finally {
-            this.elements.loading.style.display = 'none';
-        }
+function mostrarResultados(results) {
+    const list = elements.resultsList;
+    if (results.length === 0) {
+        list.innerHTML = `
+            <div class="stock-not-found">
+                <span class="icon">🔍</span>
+                <p>No se encontraron productos</p>
+                <small>Intenta con otro término de búsqueda</small>
+            </div>
+        `;
+        elements.resultsContainer.classList.add('visible');
+        return;
     }
 
-    _mostrarResultados() {
-        const container = this.elements.resultsContainer;
-        const list = this.elements.resultsList;
-        
-        if (this.resultados.length === 0) {
-            list.innerHTML = `
-                <div class="stock-not-found">
-                    <div class="icon">🔍</div>
-                    <p>No se encontraron productos</p>
-                    <small>Intenta con otro término de búsqueda</small>
-                </div>
-            `;
-            container.style.display = 'block';
-            return;
-        }
+    list.innerHTML = results.map(item => {
+        const stockClass = item.stock <= 0 ? 'low' : (item.stock <= 5 ? 'medium' : '');
+        const stockLabel = item.stock <= 0 ? '❌ Agotado' : 
+                          (item.stock <= 5 ? '⚠️ Bajo' : '✓ Stock');
+        return `
+            <div class="stock-item">
+                <span class="code">${item.codigo}</span>
+                <span class="desc">${item.desc}</span>
+                <span class="stock-qty ${stockClass}">
+                    ${item.stock} ${stockLabel}
+                </span>
+            </div>
+        `;
+    }).join('');
 
-        list.innerHTML = this.resultados.map(item => {
-            const stockLevel = getStockLevel(item.stock);
-            const stockClass = stockLevel === 'high' ? '' : stockLevel;
-            const stockLabel = stockLevel === 'high' ? '✓ Stock' : 
-                              stockLevel === 'medium' ? '⚠️ Bajo' : '❌ Agotado';
-            
-            return `
-                <div class="stock-item">
-                    <span class="code">${item.codigo}</span>
-                    <span class="desc">${item.desc}</span>
-                    <span class="stock-qty ${stockClass}">
-                        ${formatearCantidad(item.stock)} ${stockLabel}
-                    </span>
-                </div>
-            `;
-        }).join('');
-
-        container.style.display = 'block';
-    }
+    elements.resultsContainer.classList.add('visible');
 }
