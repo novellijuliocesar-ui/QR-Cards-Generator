@@ -7,17 +7,14 @@ import { initSwipeNavigation } from './shared/swipe-navigation.js';
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Iniciando QR Cards Generator...');
     
-    // Inicializar navegación
     const nav = initNavigation();
     
-    // Inicializar swipe
     initSwipeNavigation(
         nav.goTo,
         () => nav.currentIndex,
         () => nav.totalScreens
     );
     
-    // Inicializar módulos
     initQR();
     initStock();
     
@@ -49,9 +46,5 @@ function initNavigation() {
     navNext.addEventListener('click', () => goTo(currentIndex + 1));
     goTo(0);
 
-    return {
-        goTo,
-        currentIndex,
-        totalScreens
-    };
+    return { goTo, currentIndex, totalScreens };
 }

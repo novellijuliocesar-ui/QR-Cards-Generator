@@ -2,15 +2,7 @@
    STOCK-FINDER.CSS - Estilos del Buscador de Stock
    ============================================ */
 
-/* ---------- PANTALLA STOCK ---------- */
-.screen[data-screen="stock"] .stock-screen {
-    background: white;
-    border-radius: 20px;
-    padding: 0;
-}
-
-/* ---------- HEADER STOCK ---------- */
-.screen[data-screen="stock"] .header-stock {
+.header-stock {
     background: linear-gradient(135deg, #1a1a2e, #16213e);
     color: white;
     border-radius: 16px;
@@ -19,18 +11,17 @@
     text-align: center;
 }
 
-.screen[data-screen="stock"] .header-stock h2 {
+.header-stock h2 {
     font-size: 1.3rem;
     margin-bottom: 4px;
 }
 
-.screen[data-screen="stock"] .header-stock p {
+.header-stock p {
     font-size: 0.85rem;
     opacity: 0.8;
 }
 
-/* ---------- RESULTADOS ---------- */
-.screen[data-screen="stock"] .results-container {
+#resultsContainerStock {
     background: #f8f9fa;
     border-radius: 16px;
     padding: 16px;
@@ -38,17 +29,11 @@
     display: none;
 }
 
-.screen[data-screen="stock"] .results-container.visible {
+#resultsContainerStock.visible {
     display: block;
-    animation: fadeInResults 0.4s ease;
 }
 
-@keyframes fadeInResults {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.screen[data-screen="stock"] .results-container h3 {
+#resultsContainerStock h3 {
     font-size: 1rem;
     color: #1a1a2e;
     margin-bottom: 12px;
@@ -56,8 +41,7 @@
     padding-bottom: 8px;
 }
 
-/* ---------- LISTA DE RESULTADOS ---------- */
-.screen[data-screen="stock"] .stock-results-list {
+#stockResultsList {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -65,22 +49,7 @@
     overflow-y: auto;
 }
 
-.screen[data-screen="stock"] .stock-results-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.screen[data-screen="stock"] .stock-results-list::-webkit-scrollbar-track {
-    background: #e9ecef;
-    border-radius: 8px;
-}
-
-.screen[data-screen="stock"] .stock-results-list::-webkit-scrollbar-thumb {
-    background: #F2C200;
-    border-radius: 8px;
-}
-
-/* ---------- ITEM DE STOCK ---------- */
-.screen[data-screen="stock"] .stock-item {
+.stock-item {
     background: white;
     border-radius: 12px;
     padding: 12px 16px;
@@ -89,15 +58,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: all 0.2s ease;
 }
 
-.screen[data-screen="stock"] .stock-item:hover {
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-
-.screen[data-screen="stock"] .stock-item .code {
+.stock-item .code {
     font-weight: 600;
     color: #1a1a2e;
     font-family: 'Courier New', monospace;
@@ -105,15 +68,14 @@
     min-width: 80px;
 }
 
-.screen[data-screen="stock"] .stock-item .desc {
+.stock-item .desc {
     flex: 1;
     margin: 0 12px;
     color: #333;
     font-size: 0.9rem;
 }
 
-/* ---------- INDICADOR DE STOCK ---------- */
-.screen[data-screen="stock"] .stock-item .stock-qty {
+.stock-item .stock-qty {
     padding: 4px 14px;
     border-radius: 20px;
     font-size: 0.8rem;
@@ -123,57 +85,54 @@
     color: white;
 }
 
-.screen[data-screen="stock"] .stock-item .stock-qty.low {
+.stock-item .stock-qty.low {
     background: #dc3545;
-    color: white;
 }
 
-.screen[data-screen="stock"] .stock-item .stock-qty.medium {
+.stock-item .stock-qty.medium {
     background: #ffc107;
     color: #1a1a2e;
 }
 
-/* ---------- MENSAJE DE SIN RESULTADOS ---------- */
-.screen[data-screen="stock"] .stock-not-found {
+.stock-not-found {
     text-align: center;
     padding: 30px 20px;
     color: #6c757d;
 }
 
-.screen[data-screen="stock"] .stock-not-found .icon {
+.stock-not-found .icon {
     font-size: 2.5rem;
     margin-bottom: 10px;
     display: block;
 }
 
-.screen[data-screen="stock"] .stock-not-found small {
+.stock-not-found small {
     display: block;
     margin-top: 6px;
     font-size: 0.8rem;
     opacity: 0.7;
 }
 
-/* ---------- RESPONSIVE STOCK ---------- */
 @media (max-width: 480px) {
-    .screen[data-screen="stock"] .stock-item {
+    .stock-item {
         flex-wrap: wrap;
         gap: 6px;
         padding: 12px;
     }
-    .screen[data-screen="stock"] .stock-item .desc {
+    .stock-item .desc {
         margin: 4px 0;
         width: 100%;
         order: 3;
     }
-    .screen[data-screen="stock"] .stock-item .code {
+    .stock-item .code {
         font-size: 0.8rem;
         min-width: 60px;
     }
-    .screen[data-screen="stock"] .stock-item .stock-qty {
+    .stock-item .stock-qty {
         font-size: 0.7rem;
         padding: 2px 10px;
     }
-    .screen[data-screen="stock"] .header-stock h2 {
+    .header-stock h2 {
         font-size: 1.1rem;
     }
 }
