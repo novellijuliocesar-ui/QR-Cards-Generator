@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qr-cards-v4';
+const CACHE_NAME = 'qr-cards-v6';
 const BASE_PATH = '/QR-Cards-Generator/';
 
 const ASSETS_TO_CACHE = [
@@ -15,6 +15,9 @@ const ASSETS_TO_CACHE = [
     'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js',
     'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js'
 ];
+
+// NOTA: Los archivos Excel NO se cachean intencionalmente
+// para que siempre se cargue la versión más reciente
 
 self.addEventListener('install', event => {
     event.waitUntil(
@@ -40,14 +43,17 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-    if (event.request.method !== 'GET') {
-        event.respondWith(fetch(event.request));
-        return;
-    }
+    // No cachear archivos Excel
     if (event.request.url.includes('.xlsx')) {
         event.respondWith(fetch(event.request));
         return;
     }
+    
+    if (event.request.method !== 'GET') {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+    
     event.respondWith(
         caches.match(event.request)
             .then(response => response || fetch(event.request))
