@@ -1,5 +1,5 @@
 const CACHE_NAME = 'qr-cards-v2';
-const BASE_PATH = '/QR%20Cards%20Generator/';
+const BASE_PATH = '/QR-Cards-Generator/';
 
 const ASSETS_TO_CACHE = [
     BASE_PATH,
