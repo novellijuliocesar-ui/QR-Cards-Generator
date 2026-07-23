@@ -49,13 +49,11 @@ export function initSwipeNavigation(goToCallback, getCurrentIndex, getTotalScree
         const totalScreens = getTotalScreens();
 
         if (diff > 0) {
-            // Deslizar a la izquierda → siguiente
             if (currentIndex < totalScreens - 1) {
                 goToCallback(currentIndex + 1);
                 if (navigator.vibrate) navigator.vibrate(10);
             }
         } else {
-            // Deslizar a la derecha → anterior
             if (currentIndex > 0) {
                 goToCallback(currentIndex - 1);
                 if (navigator.vibrate) navigator.vibrate(10);
