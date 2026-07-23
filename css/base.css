@@ -1,7 +1,8 @@
 /* ============================================
-   BASE.CSS - RESET Y COMPONENTES COMUNES
+   BASE.CSS - RESET, HEADER, NAVEGACIÓN Y COMPONENTES COMUNES
    ============================================ */
 
+/* ---------- RESET ---------- */
 * {
     margin: 0;
     padding: 0;
@@ -24,7 +25,7 @@ body {
     width: 100%;
     background: white;
     border-radius: 24px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     padding: 20px;
 }
@@ -35,7 +36,6 @@ body {
     border-radius: 16px;
     padding: 16px 20px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 
 .header-top {
@@ -64,16 +64,15 @@ body {
     height: 36px;
     font-size: 16px;
     cursor: pointer;
-    transition: all 0.3s ease;
     color: #1a1a2e;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s ease;
 }
 
 .nav-arrow:hover:not(:disabled) {
     background: rgba(26, 26, 46, 0.3);
-    transform: scale(1.05);
 }
 
 .nav-arrow:disabled {
@@ -101,7 +100,7 @@ body {
     opacity: 0.8;
 }
 
-/* ---------- PANTALLAS ---------- */
+/* ---------- CONTENEDOR DE PANTALLAS ---------- */
 .screens-container {
     position: relative;
     min-height: 400px;
@@ -118,8 +117,14 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ---------- BOTONES ---------- */
