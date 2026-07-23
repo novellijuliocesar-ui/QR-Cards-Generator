@@ -1,14 +1,14 @@
 const CACHE_NAME = 'qr-cards-v3';
 const ASSETS_TO_CACHE = [
-    './',
-    './index.html',
-    './manifest.json',
-    './css/styles.css',
-    './js/app.js',
-    './js/excel-loader.js',
-    './js/qr-generator.js',
-    './js/card-renderer.js',
-    './js/utils.js',
+    BASE_PATH,
+    BASE_PATH + 'index.html',
+    BASE_PATH + 'manifest.json',
+    BASE_PATH + 'css/styles.css',
+    BASE_PATH + 'js/app.js',
+    BASE_PATH + 'js/excel-loader.js',
+    BASE_PATH + 'js/qr-generator.js',
+    BASE_PATH + 'js/card-renderer.js',
+    BASE_PATH + 'js/utils.js',
     'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js',
     'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js'
 ];
