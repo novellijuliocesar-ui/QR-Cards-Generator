@@ -1,5 +1,6 @@
 const CACHE_NAME = 'qr-cards-v3';
 const BASE_PATH = '/QR-Cards-Generator/';
+
 const ASSETS_TO_CACHE = [
     BASE_PATH,
     BASE_PATH + 'index.html',
@@ -14,12 +15,11 @@ const ASSETS_TO_CACHE = [
     'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js'
 ];
 
-// ===== INSTALACIÓN =====
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                console.log('[SW] Cacheando assets');
+                console.log('[SW] Cacheando assets para:', BASE_PATH);
                 return cache.addAll(ASSETS_TO_CACHE);
             })
             .catch(err => console.error('[SW] Error en install:', err))
@@ -27,7 +27,6 @@ self.addEventListener('install', event => {
     self.skipWaiting();
 });
 
-// ===== ACTIVACIÓN =====
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
@@ -44,15 +43,12 @@ self.addEventListener('activate', event => {
     self.clients.claim();
 });
 
-// ===== INTERCEPTACIÓN DE PETICIONES =====
 self.addEventListener('fetch', event => {
-    // Solo cachear peticiones GET
     if (event.request.method !== 'GET') {
         event.respondWith(fetch(event.request));
         return;
     }
 
-    // Si la petición es para el archivo Excel, no cachear (siempre buscar en red)
     if (event.request.url.includes('.xlsx')) {
         event.respondWith(fetch(event.request));
         return;
@@ -64,10 +60,7 @@ self.addEventListener('fetch', event => {
                 if (response) {
                     return response;
                 }
-
-                // Si no está en cache, buscar en red
                 return fetch(event.request).then(response => {
-                    // Guardar en cache para futuras visitas
                     if (response && response.status === 200) {
                         const responseToCache = response.clone();
                         caches.open(CACHE_NAME)
@@ -83,7 +76,6 @@ self.addEventListener('fetch', event => {
                 });
             })
             .catch(() => {
-                // Offline: mostrar página de error
                 return new Response('⚠️ Sin conexión', {
                     status: 503,
                     statusText: 'Service Unavailable'
