@@ -7,13 +7,13 @@
     <meta name="description" content="Generador de Tarjetas QR para activos">
     <title>Generador de Tarjetas QR</title>
     
-    <!-- Ruta RELATIVA al manifest -->
-    <link rel="manifest" href="./manifest.json">
+    <!-- MANIFEST - Ruta relativa -->
+    <link rel="manifest" href="manifest.json">
     
-    <!-- Ruta RELATIVA al CSS -->
-    <link rel="stylesheet" href="./css/styles.css">
+    <!-- CSS - Ruta relativa (SIN barra al inicio) -->
+    <link rel="stylesheet" href="css/styles.css">
     
-    <!-- Bibliotecas externas (CDN) - Estas no cambian -->
+    <!-- Bibliotecas externas (CDN) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 </head>
@@ -80,7 +80,7 @@
         </div>
     </div>
 
-    <!-- Aplicación modular con ruta relativa -->
-    <script type="module" src="./js/app.js"></script>
+    <!-- JavaScript principal - Ruta relativa -->
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>
