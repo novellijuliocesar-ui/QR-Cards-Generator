@@ -1,38 +1,42 @@
-import { Navigation } from './shared/navigation.js';
-import { QRModule } from './modules/qr-generator/qr-module.js';
-import { StockFinder } from './modules/stock-finder/stock-finder.js';
+import { initQR } from './modules/qr-generator.js';
+import { initStock } from './modules/stock-finder.js';
 
 // ========== CONTROLADOR PRINCIPAL ==========
 
-class App {
-    constructor() {
-        console.log('🚀 Iniciando QR Cards Generator...');
-        
-        // Inicializar navegación
-        this.navigation = new Navigation();
-        
-        // Inicializar módulos
-        this.qrModule = new QRModule();
-        this.stockFinder = new StockFinder();
-        
-        // Escuchar cambios de pantalla
-        document.addEventListener('screenChange', this._onScreenChange.bind(this));
-        
-        console.log('✅ Aplicación inicializada correctamente');
-    }
-    
-    _onScreenChange(event) {
-        const { screen, index } = event.detail;
-        console.log(`📱 Pantalla activa: ${screen} (${index + 1})`);
-        
-        // Si cambiamos a la pantalla de stock, asegurarse de que los datos estén cargados
-        if (screen === 'stock' && this.stockFinder.datos.length === 0) {
-            this.stockFinder._cargarDatos();
-        }
-    }
-}
-
-// ===== INICIALIZAR =====
 document.addEventListener('DOMContentLoaded', () => {
-    new App();
+    console.log('🚀 Iniciando QR Cards Generator...');
+    
+    // Inicializar navegación
+    initNavigation();
+    
+    // Inicializar módulos
+    initQR();
+    initStock();
+    
+    console.log('✅ Aplicación inicializada');
 });
+
+function initNavigation() {
+    const screens = document.querySelectorAll('.screen');
+    const navPrev = document.getElementById('navPrev');
+    const navNext = document.getElementById('navNext');
+    const screenIndicator = document.getElementById('screenIndicator');
+    const screenTitle = document.getElementById('screenTitle');
+    const screenTitles = ['Generador de QR', 'Buscador de Stock'];
+    let currentIndex = 0;
+
+    function goTo(index) {
+        if (index < 0 || index >= screens.length) return;
+        screens.forEach(s => s.classList.remove('active'));
+        screens[index].classList.add('active');
+        currentIndex = index;
+        screenIndicator.textContent = `${index + 1}/${screens.length}`;
+        screenTitle.textContent = screenTitles[index];
+        navPrev.disabled = (index === 0);
+        navNext.disabled = (index === screens.length - 1);
+    }
+
+    navPrev.addEventListener('click', () => goTo(currentIndex - 1));
+    navNext.addEventListener('click', () => goTo(currentIndex + 1));
+    goTo(0);
+}
