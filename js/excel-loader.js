@@ -104,11 +104,11 @@ export class ExcelLoader {
         const path = window.location.pathname;
         console.log('[ExcelLoader] Path actual:', path);
         
-        // Si estamos en /mi-app-qr/ o similar
-        if (path.includes('/mi-app-qr/')) {
-            const match = path.match(/^(.*\/mi-app-qr\/)/);
+        // Si estamos en /QR-Cards-Generator/ o similar
+        if (path.includes('/QR-Cards-Generator/')) {
+            const match = path.match(/^(.*\/QR-Cards-Generator\/)/);
             if (match) return match[1];
-            return '/mi-app-qr/';
+            return '/QR-Cards-Generator/';
         }
         
         // Si estamos en la raíz
