@@ -13,6 +13,199 @@ function normalizarTexto(texto) {
         .trim();
 }
 
+// ========== GENERADOR DE IMAGEN DE RESULTADOS ==========
+
+class ResultsRenderer {
+    /**
+     * Genera una imagen de los resultados de búsqueda (solo la página actual)
+     */
+    static async generarImagen(resultados, termino = '', categoria = '', pagina = 1, total = 0) {
+        return new Promise((resolve, reject) => {
+            try {
+                if (!resultados || !Array.isArray(resultados) || resultados.length === 0) {
+                    reject(new Error('No hay resultados para mostrar'));
+                    return;
+                }
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const maxWidth = 700;
+                const padding = 15;
+                const rowHeight = 30;
+                const headerHeight = 50;
+                const titleHeight = 55;
+                
+                const resultsCount = Math.min(resultados.length, 30);
+                const totalHeight = titleHeight + headerHeight + (resultsCount * rowHeight) + padding * 2 + 50;
+                
+                canvas.width = maxWidth;
+                canvas.height = totalHeight;
+                
+                // Fondo con gradiente
+                const gradiente = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradiente.addColorStop(0, '#F2C200');
+                gradiente.addColorStop(0.3, '#F5D530');
+                gradiente.addColorStop(1, '#1a1a2e');
+                ctx.fillStyle = gradiente;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Fondo blanco para el contenido
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+                ResultsRenderer._dibujarRectRedondeado(ctx, padding, padding, canvas.width - padding * 2, canvas.height - padding * 2, 16);
+                ctx.fill();
+                
+                let y = padding + 12;
+                
+                // Título
+                ctx.fillStyle = '#1a1a2e';
+                ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('📦 Resultados de Búsqueda', canvas.width / 2, y + 18);
+                y += 32;
+                
+                // Subtítulo
+                ctx.font = '11px "Segoe UI", sans-serif';
+                ctx.fillStyle = '#666';
+                let subtitulo = `🔍 ${total || resultados.length} resultados encontrados`;
+                if (termino) subtitulo += ` - "${termino}"`;
+                if (categoria) subtitulo += ` - ${categoria}`;
+                if (total > resultados.length) subtitulo += ` (mostrando página ${pagina})`;
+                ctx.fillText(subtitulo, canvas.width / 2, y + 10);
+                y += 28;
+                
+                // Línea separadora
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padding + 12, y);
+                ctx.lineTo(canvas.width - padding - 12, y);
+                ctx.stroke();
+                y += 10;
+                
+                // Cabeceras de tabla
+                ctx.fillStyle = '#1a1a2e';
+                ctx.font = 'bold 10px "Courier New", monospace';
+                ctx.textAlign = 'left';
+                
+                const colores = ['#1a1a2e', '#F2C200', '#1a1a2e', '#1a1a2e', '#1a1a2e', '#1a1a2e'];
+                const textos = ['📍 Ubicación', 'Ref.', 'Fabricante', 'Descripción', 'Clasif.', 'Cant.'];
+                const xInicial = padding + 12;
+                const colWidths = [100, 65, 75, 180, 75, 55];
+                
+                let x = xInicial;
+                textos.forEach((text, i) => {
+                    ctx.fillStyle = colores[i];
+                    ctx.fillText(text, x, y + 12);
+                    x += colWidths[i];
+                });
+                y += 18;
+                
+                // Línea separadora de cabeceras
+                ctx.strokeStyle = '#1a1a2e';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(xInicial, y - 4);
+                ctx.lineTo(xInicial + colWidths.reduce((a, b) => a + b, 0), y - 4);
+                ctx.stroke();
+                
+                // Datos
+                const maxDisplay = Math.min(resultados.length, 30);
+                ctx.font = '9px "Segoe UI", sans-serif';
+                
+                for (let i = 0; i < maxDisplay; i++) {
+                    const item = resultados[i];
+                    if (!item) continue;
+                    
+                    x = xInicial;
+                    
+                    // Ubicación
+                    ctx.fillStyle = '#333';
+                    ctx.textAlign = 'left';
+                    let texto = item.ubicacion || '—';
+                    if (texto.length > 12) texto = texto.substring(0, 11) + '…';
+                    ctx.fillText(texto, x, y + 10);
+                    x += colWidths[0];
+                    
+                    // Referencia
+                    ctx.fillStyle = '#1a1a2e';
+                    ctx.font = 'bold 9px "Courier New", monospace';
+                    texto = item.referencia || '—';
+                    if (texto.length > 8) texto = texto.substring(0, 7) + '…';
+                    ctx.fillText(texto, x, y + 10);
+                    x += colWidths[1];
+                    ctx.font = '9px "Segoe UI", sans-serif';
+                    
+                    // Fabricante
+                    ctx.fillStyle = '#555';
+                    ctx.font = '8px "Segoe UI", sans-serif';
+                    texto = item.refFabricante || '—';
+                    if (texto.length > 10) texto = texto.substring(0, 9) + '…';
+                    ctx.fillText(texto, x, y + 10);
+                    x += colWidths[2];
+                    
+                    // Descripción
+                    ctx.fillStyle = '#333';
+                    ctx.font = '9px "Segoe UI", sans-serif';
+                    texto = item.descripcion || '—';
+                    if (texto.length > 22) texto = texto.substring(0, 21) + '…';
+                    ctx.fillText(texto, x, y + 10);
+                    x += colWidths[3];
+                    
+                    // Clasificación
+                    ctx.fillStyle = '#1a1a2e';
+                    ctx.font = '8px "Segoe UI", sans-serif';
+                    texto = item.clasificacion || '—';
+                    if (texto.length > 10) texto = texto.substring(0, 9) + '…';
+                    ctx.fillText(texto, x, y + 10);
+                    x += colWidths[4];
+                    
+                    // Cantidad
+                    const cantidad = typeof item.cantidad === 'number' ? item.cantidad : 0;
+                    const badgeColor = cantidad > 10 ? '#28a745' : cantidad > 5 ? '#ffc107' : '#dc3545';
+                    ctx.fillStyle = badgeColor;
+                    ctx.font = 'bold 9px "Courier New", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${cantidad}`, x + colWidths[5] / 2, y + 10);
+                    
+                    y += rowHeight;
+                }
+                
+                // Pie de página
+                y += 10;
+                ctx.fillStyle = 'rgba(26, 26, 46, 0.4)';
+                ctx.font = '8px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                const fecha = new Date().toLocaleDateString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                const infoPagina = total > resultados.length ? ` · Página ${pagina}` : '';
+                ctx.fillText(`Generado: ${fecha}${infoPagina} · QR-Cards-Generator`, canvas.width / 2, y + 8);
+                
+                resolve(canvas.toDataURL('image/png'));
+            } catch (error) {
+                console.error('[ResultsRenderer] Error:', error);
+                reject(error);
+            }
+        });
+    }
+    
+    static _dibujarRectRedondeado(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+}
+
 // ========== DATOS DE EJEMPLO (FALLBACK) ==========
 
 const DATOS_EJEMPLO = [
@@ -22,7 +215,6 @@ const DATOS_EJEMPLO = [
         refFabricante: '82014647-00001',
         descripcion: 'Motor-reductor engranaje. cilindricos R47DRS80M4BE2',
         clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
         cantidad: 2
     },
     {
@@ -31,7 +223,6 @@ const DATOS_EJEMPLO = [
         refFabricante: '82013047-00001',
         descripcion: 'Motor-reductor engranaje. cilindricos R47DRS90M4BE2/Z',
         clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
         cantidad: 1
     },
     {
@@ -40,7 +231,6 @@ const DATOS_EJEMPLO = [
         refFabricante: '306865',
         descripcion: 'MOTORREDUCTOR R67 DT90L4 1,5 KW 1410/27 REV/MIN',
         clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
         cantidad: 1
     }
 ];
@@ -142,7 +332,6 @@ class StockLoader {
             const idxRefFabricante = cabeceras.indexOf('Referencia Fabricante');
             const idxDescripcion = cabeceras.indexOf('Descripción');
             const idxClasificacion = cabeceras.indexOf('Clasificación');
-            const idxTipoUnidad = cabeceras.indexOf('Tipo Unidad');
             const idxCantidad = cabeceras.indexOf('Cantidad');
 
             this.datos = [];
@@ -156,7 +345,6 @@ class StockLoader {
                 const refFabricante = idxRefFabricante >= 0 ? String(row[idxRefFabricante] || '').trim() : '';
                 const descripcion = idxDescripcion >= 0 ? String(row[idxDescripcion] || '').trim() : '';
                 const clasificacion = idxClasificacion >= 0 ? String(row[idxClasificacion] || '').trim() : '';
-                const tipoUnidad = idxTipoUnidad >= 0 ? String(row[idxTipoUnidad] || '').trim() : 'UD.';
                 const cantidad = idxCantidad >= 0 ? parseFloat(row[idxCantidad]) || 0 : 0;
 
                 if (referencia || descripcion) {
@@ -166,7 +354,6 @@ class StockLoader {
                         refFabricante: refFabricante || '—',
                         descripcion: descripcion || '—',
                         clasificacion: clasificacion || '—',
-                        tipoUnidad: tipoUnidad || 'UD.',
                         cantidad: cantidad
                     });
                 }
@@ -278,7 +465,6 @@ class StockLoader {
                     refFabricante: original.refFabricante || '—',
                     descripcion: original.descripcion || '—',
                     clasificacion: original.clasificacion || '—',
-                    tipoUnidad: original.tipoUnidad || 'UD.',
                     cantidad: typeof original.cantidad === 'number' ? original.cantidad : 0
                 };
             });
@@ -308,6 +494,7 @@ class StockApp {
         this.categoriaBusqueda = '';
         this.paginaActual = 1;
         this.resultadosPorPagina = 25;
+        this.cachedImage = null;
 
         this.container = document.getElementById('stockPage');
         this.elements = {};
@@ -365,14 +552,9 @@ class StockApp {
                         <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
                         <p id="resultsSubtitle" style="margin: 4px 0 0; font-size: 0.8rem;">0 resultados encontrados</p>
                     </div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="btn btn-back btn-small" id="backSearchBtn" style="margin: 0; padding: 6px 14px; font-size: 0.75rem;">
-                            ◀ Volver
-                        </button>
-                        <button class="btn btn-secondary btn-small" id="exportCsvBtn" style="margin: 0; padding: 6px 14px; font-size: 0.75rem;">
-                            📥 CSV
-                        </button>
-                    </div>
+                    <button class="btn btn-back btn-small" id="backSearchBtn" style="margin: 0; padding: 6px 14px; font-size: 0.75rem;">
+                        ◀ Volver
+                    </button>
                 </div>
 
                 <div class="stock-table-container" id="tableContainer">
@@ -408,6 +590,19 @@ class StockApp {
                         </div>
                     </div>
                 </div>
+
+                <!-- ====== BOTONES DE ACCIÓN ====== -->
+                <div class="action-buttons" id="actionButtons" style="margin-top: 16px; display: none;">
+                    <button class="btn btn-secondary" id="downloadImageBtn">
+                        📥 Descargar imagen
+                    </button>
+                    <button class="btn btn-success" id="shareImageBtn">
+                        📤 Compartir imagen
+                    </button>
+                    <button class="btn btn-back" id="newSearchBtn">
+                        ◀ Nueva búsqueda
+                    </button>
+                </div>
             </div>
         `;
 
@@ -421,11 +616,14 @@ class StockApp {
             categoryFilter: this.container.querySelector('#categoryFilter'),
             searchBtn: this.container.querySelector('#searchBtn'),
             backBtn: this.container.querySelector('#backSearchBtn'),
-            exportCsvBtn: this.container.querySelector('#exportCsvBtn'),
             prevPageBtn: this.container.querySelector('#prevPageBtn'),
             nextPageBtn: this.container.querySelector('#nextPageBtn'),
             pageIndicator: this.container.querySelector('#pageIndicator'),
             paginationInfo: this.container.querySelector('#paginationInfo'),
+            downloadImageBtn: this.container.querySelector('#downloadImageBtn'),
+            shareImageBtn: this.container.querySelector('#shareImageBtn'),
+            newSearchBtn: this.container.querySelector('#newSearchBtn'),
+            actionButtons: this.container.querySelector('#actionButtons'),
         };
         this.messageEl = this.container.querySelector('#stockMessage');
     }
@@ -438,9 +636,11 @@ class StockApp {
             }
         });
         this.elements.backBtn.addEventListener('click', () => this._volver());
-        this.elements.exportCsvBtn.addEventListener('click', () => this._exportarCSV());
+        this.elements.newSearchBtn.addEventListener('click', () => this._volver());
         this.elements.prevPageBtn.addEventListener('click', () => this._cambiarPagina(-1));
         this.elements.nextPageBtn.addEventListener('click', () => this._cambiarPagina(1));
+        this.elements.downloadImageBtn.addEventListener('click', () => this._descargarImagen());
+        this.elements.shareImageBtn.addEventListener('click', () => this._compartirImagen());
 
         // Ordenación de columnas
         this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
@@ -486,6 +686,7 @@ class StockApp {
 
         this.filtrados = this.loader.buscar(termino, categoria);
         this.paginaActual = 1;
+        this.cachedImage = null;
 
         if (this.filtrados.length === 0) {
             this._showMessage(`🔍 No se encontraron resultados para "${termino || categoria}"`, 'info', 3000);
@@ -504,15 +705,18 @@ class StockApp {
             this.elements.pageIndicator.textContent = 'Página 1';
             this.elements.prevPageBtn.style.display = 'none';
             this.elements.nextPageBtn.style.display = 'none';
+            this.elements.actionButtons.style.display = 'none';
             return;
         }
 
+        this.elements.actionButtons.style.display = 'flex';
         await this._mostrarResultados();
     }
 
     async _mostrarResultados() {
         this.elements.searchScreen.style.display = 'none';
         this.elements.resultsScreen.style.display = 'block';
+        this.elements.actionButtons.style.display = 'flex';
 
         this.elements.resultsSubtitle.textContent = 
             `🔍 ${this.filtrados.length} resultados encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}${this.categoriaBusqueda ? ` en ${this.categoriaBusqueda}` : ''}`;
@@ -548,7 +752,6 @@ class StockApp {
             tbody.innerHTML = paginaResultados.map(item => {
                 const cantidad = item.cantidad || 0;
                 const stockClass = cantidad > 10 ? 'high' : cantidad > 5 ? 'medium' : 'low';
-                const unidad = item.tipoUnidad || 'UD.';
                 
                 return `
                     <tr>
@@ -557,7 +760,7 @@ class StockApp {
                         <td style="font-size: 0.75rem; color: #666;">${item.refFabricante}</td>
                         <td>${item.descripcion}</td>
                         <td><span style="font-size: 0.75rem; background: #e8e8e8; padding: 2px 8px; border-radius: 12px;">${item.clasificacion}</span></td>
-                        <td><span class="stock-badge ${stockClass}">${cantidad} ${unidad}</span></td>
+                        <td><span class="stock-badge ${stockClass}">${cantidad}</span></td>
                     </tr>
                 `;
             }).join('');
@@ -569,6 +772,9 @@ class StockApp {
         
         this.elements.prevPageBtn.style.display = this.paginaActual > 1 ? 'inline-block' : 'none';
         this.elements.nextPageBtn.style.display = this.paginaActual < totalPaginas ? 'inline-block' : 'none';
+        
+        // Limpiar caché de imagen al cambiar de página
+        this.cachedImage = null;
     }
 
     _cambiarPagina(delta) {
@@ -581,7 +787,6 @@ class StockApp {
         this.paginaActual = nuevaPagina;
         this._renderPagina();
         
-        // Scroll al inicio de la tabla
         const tableContainer = this.container.querySelector('#tableContainer');
         if (tableContainer) {
             tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -591,7 +796,6 @@ class StockApp {
     _ordenarPor(key) {
         if (this.filtrados.length === 0) return;
         
-        // Alternar orden
         if (this._ultimaOrden === key) {
             this._ordenAscendente = !this._ordenAscendente;
         } else {
@@ -614,46 +818,107 @@ class StockApp {
         });
         
         this.paginaActual = 1;
+        this.cachedImage = null;
         this._renderPagina();
         
-        // Actualizar indicadores de orden
         this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
             th.style.color = th.dataset.sort === key ? '#F2C200' : '';
         });
     }
 
-    _exportarCSV() {
+    async _generarImagen() {
+        // Obtener los resultados de la página actual
+        const total = this.filtrados.length;
+        const porPagina = this.resultadosPorPagina;
+        const inicio = (this.paginaActual - 1) * porPagina;
+        const fin = Math.min(inicio + porPagina, total);
+        const paginaResultados = this.filtrados.slice(inicio, fin);
+
+        if (paginaResultados.length === 0) {
+            this._showMessage('⚠️ No hay datos en esta página para generar imagen', 'info', 3000);
+            return null;
+        }
+
+        try {
+            const imageData = await ResultsRenderer.generarImagen(
+                paginaResultados,
+                this.terminoBusqueda,
+                this.categoriaBusqueda,
+                this.paginaActual,
+                total
+            );
+            return imageData;
+        } catch (error) {
+            console.error('[StockApp] Error generando imagen:', error);
+            this._showMessage('❌ Error al generar la imagen', 'error', 3000);
+            return null;
+        }
+    }
+
+    async _descargarImagen() {
         if (this.filtrados.length === 0) {
-            this._showMessage('⚠️ No hay datos para exportar', 'info', 3000);
+            this._showMessage('⚠️ No hay resultados para descargar', 'info', 3000);
+            return;
+        }
+
+        // Mostrar loading
+        this._showMessage('🖼️ Generando imagen...', 'info', 0);
+
+        const imageData = await this._generarImagen();
+        if (!imageData) {
+            this._showMessage('❌ Error al generar la imagen', 'error', 3000);
             return;
         }
 
         try {
-            // Crear contenido CSV
-            const cabeceras = ['Ubicación', 'Referencia', 'Fabricante', 'Descripción', 'Clasificación', 'Cantidad', 'Unidad'];
-            const filas = this.filtrados.map(item => [
-                item.ubicacion,
-                item.referencia,
-                item.refFabricante,
-                `"${item.descripcion.replace(/"/g, '""')}"`,
-                item.clasificacion,
-                item.cantidad || 0,
-                item.tipoUnidad || 'UD.'
-            ]);
-            
-            const csvContent = [cabeceras.join(','), ...filas.map(f => f.join(','))].join('\n');
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
-            const nombre = `stock-${new Date().toISOString().slice(0, 10)}`;
-            link.href = URL.createObjectURL(blob);
-            link.download = `${nombre}.csv`;
+            const fecha = new Date().toISOString().slice(0, 10);
+            link.download = `stock-pagina-${this.paginaActual}-${fecha}.png`;
+            link.href = imageData;
+            document.body.appendChild(link);
             link.click();
-            URL.revokeObjectURL(link.href);
-            
-            this._showMessage('📥 CSV exportado correctamente', 'success', 2000);
+            document.body.removeChild(link);
+            this._showMessage('📥 Imagen descargada', 'success', 2000);
         } catch (error) {
-            console.error('[StockApp] Error exportando CSV:', error);
-            this._showMessage('❌ Error al exportar CSV', 'error', 3000);
+            console.error('[StockApp] Error descargando:', error);
+            this._showMessage('❌ Error al descargar', 'error', 3000);
+        }
+    }
+
+    async _compartirImagen() {
+        if (this.filtrados.length === 0) {
+            this._showMessage('⚠️ No hay resultados para compartir', 'info', 3000);
+            return;
+        }
+
+        this._showMessage('🖼️ Generando imagen...', 'info', 0);
+
+        const imageData = await this._generarImagen();
+        if (!imageData) {
+            this._showMessage('❌ Error al generar la imagen', 'error', 3000);
+            return;
+        }
+
+        try {
+            const blob = await (await fetch(imageData)).blob();
+            const file = new File([blob], 'stock-resultados.png', { type: 'image/png' });
+
+            if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                await navigator.share({
+                    title: 'Resultados de stock',
+                    text: `📦 ${this.filtrados.length} repuestos encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''} (Página ${this.paginaActual})`,
+                    files: [file]
+                });
+                this._showMessage('📤 Compartido correctamente', 'success', 2000);
+            } else {
+                this._showMessage('📱 Compartir no soportado, se descargará', 'info', 2000);
+                this._descargarImagen();
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('[StockApp] Error compartiendo:', error);
+                this._showMessage('❌ Error al compartir', 'error', 3000);
+            }
         }
     }
 
@@ -662,8 +927,10 @@ class StockApp {
         this.elements.searchScreen.style.display = 'block';
         this.filtrados = [];
         this.paginaActual = 1;
+        this.cachedImage = null;
         this._ultimaOrden = null;
         this._ordenAscendente = true;
+        this.elements.actionButtons.style.display = 'none';
     }
 
     _showMessage(texto, tipo = 'info', duration = 3000) {
