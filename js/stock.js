@@ -28,6 +28,11 @@ class StockApp {
     }
 
     _buildUI() {
+        if (!this.container) {
+            console.error('[StockApp] No se encontró el contenedor stockPage');
+            return;
+        }
+
         this.container.innerHTML = `
             <div class="stock-header">
                 <h1>📦 Búsqueda Stock Almacén</h1>
@@ -88,11 +93,15 @@ class StockApp {
 
     _setupEventListeners() {
         const debouncedSearch = debounce(() => this._renderTabla(), 300);
-        this.searchInput.addEventListener('input', debouncedSearch);
-        this.categorySelect.addEventListener('change', () => {
-            this.currentCategory = this.categorySelect.value;
-            this._renderTabla();
-        });
+        if (this.searchInput) {
+            this.searchInput.addEventListener('input', debouncedSearch);
+        }
+        if (this.categorySelect) {
+            this.categorySelect.addEventListener('change', () => {
+                this.currentCategory = this.categorySelect.value;
+                this._renderTabla();
+            });
+        }
     }
 
     async _cargarDatos() {
@@ -123,6 +132,8 @@ class StockApp {
     }
 
     _poblarCategorias() {
+        if (!this.categorySelect) return;
+        
         const select = this.categorySelect;
         const categoriasOrdenadas = Array.from(this.categorias.keys()).sort();
         
@@ -137,7 +148,9 @@ class StockApp {
     }
 
     _renderTabla() {
-        const searchTerm = this.searchInput.value.toLowerCase().trim();
+        if (!this.tableBody || !this.resultsCount) return;
+        
+        const searchTerm = this.searchInput?.value?.toLowerCase().trim() || '';
         const category = this.currentCategory;
         
         let filtered = this.datos;
