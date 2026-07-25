@@ -17,7 +17,7 @@ function normalizarTexto(texto) {
 
 class ResultsRenderer {
     /**
-     * Genera una imagen de los resultados de búsqueda (solo la página actual)
+     * Genera una imagen de los resultados de búsqueda (solo Ubicación, Referencia, Descripción)
      */
     static async generarImagen(resultados, termino = '', categoria = '', pagina = 1, total = 0) {
         return new Promise((resolve, reject) => {
@@ -32,12 +32,12 @@ class ResultsRenderer {
                 
                 const maxWidth = 700;
                 const padding = 15;
-                const rowHeight = 30;
-                const headerHeight = 50;
-                const titleHeight = 55;
+                const rowHeight = 28;
+                const headerHeight = 45;
+                const titleHeight = 50;
                 
                 const resultsCount = Math.min(resultados.length, 30);
-                const totalHeight = titleHeight + headerHeight + (resultsCount * rowHeight) + padding * 2 + 50;
+                const totalHeight = titleHeight + headerHeight + (resultsCount * rowHeight) + padding * 2 + 45;
                 
                 canvas.width = maxWidth;
                 canvas.height = totalHeight;
@@ -55,14 +55,14 @@ class ResultsRenderer {
                 ResultsRenderer._dibujarRectRedondeado(ctx, padding, padding, canvas.width - padding * 2, canvas.height - padding * 2, 16);
                 ctx.fill();
                 
-                let y = padding + 12;
+                let y = padding + 10;
                 
                 // Título
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 16px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('📦 Resultados de Búsqueda', canvas.width / 2, y + 18);
-                y += 32;
+                ctx.fillText('📦 Resultados de Búsqueda', canvas.width / 2, y + 16);
+                y += 28;
                 
                 // Subtítulo
                 ctx.font = '11px "Segoe UI", sans-serif';
@@ -72,7 +72,7 @@ class ResultsRenderer {
                 if (categoria) subtitulo += ` - ${categoria}`;
                 if (total > resultados.length) subtitulo += ` (mostrando página ${pagina})`;
                 ctx.fillText(subtitulo, canvas.width / 2, y + 10);
-                y += 28;
+                y += 25;
                 
                 // Línea separadora
                 ctx.strokeStyle = '#e0e0e0';
@@ -81,25 +81,24 @@ class ResultsRenderer {
                 ctx.moveTo(padding + 12, y);
                 ctx.lineTo(canvas.width - padding - 12, y);
                 ctx.stroke();
-                y += 10;
+                y += 8;
                 
-                // Cabeceras de tabla
+                // Cabeceras de tabla (solo 3 columnas)
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 10px "Courier New", monospace';
                 ctx.textAlign = 'left';
                 
-                const colores = ['#1a1a2e', '#F2C200', '#1a1a2e', '#1a1a2e', '#1a1a2e', '#1a1a2e'];
-                const textos = ['📍 Ubicación', 'Ref.', 'Fabricante', 'Descripción', 'Clasif.', 'Cant.'];
+                const textos = ['📍 Ubicación', 'Referencia', 'Descripción'];
                 const xInicial = padding + 12;
-                const colWidths = [100, 65, 75, 180, 75, 55];
+                const colWidths = [130, 110, 400];
                 
                 let x = xInicial;
                 textos.forEach((text, i) => {
-                    ctx.fillStyle = colores[i];
-                    ctx.fillText(text, x, y + 12);
+                    ctx.fillStyle = i === 0 ? '#1a1a2e' : i === 1 ? '#F2C200' : '#1a1a2e';
+                    ctx.fillText(text, x, y + 10);
                     x += colWidths[i];
                 });
-                y += 18;
+                y += 16;
                 
                 // Línea separadora de cabeceras
                 ctx.strokeStyle = '#1a1a2e';
@@ -123,56 +122,31 @@ class ResultsRenderer {
                     ctx.fillStyle = '#333';
                     ctx.textAlign = 'left';
                     let texto = item.ubicacion || '—';
-                    if (texto.length > 12) texto = texto.substring(0, 11) + '…';
-                    ctx.fillText(texto, x, y + 10);
+                    if (texto.length > 16) texto = texto.substring(0, 15) + '…';
+                    ctx.fillText(texto, x, y + 9);
                     x += colWidths[0];
                     
                     // Referencia
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = 'bold 9px "Courier New", monospace';
                     texto = item.referencia || '—';
-                    if (texto.length > 8) texto = texto.substring(0, 7) + '…';
-                    ctx.fillText(texto, x, y + 10);
+                    if (texto.length > 12) texto = texto.substring(0, 11) + '…';
+                    ctx.fillText(texto, x, y + 9);
                     x += colWidths[1];
                     ctx.font = '9px "Segoe UI", sans-serif';
-                    
-                    // Fabricante
-                    ctx.fillStyle = '#555';
-                    ctx.font = '8px "Segoe UI", sans-serif';
-                    texto = item.refFabricante || '—';
-                    if (texto.length > 10) texto = texto.substring(0, 9) + '…';
-                    ctx.fillText(texto, x, y + 10);
-                    x += colWidths[2];
                     
                     // Descripción
                     ctx.fillStyle = '#333';
                     ctx.font = '9px "Segoe UI", sans-serif';
                     texto = item.descripcion || '—';
-                    if (texto.length > 22) texto = texto.substring(0, 21) + '…';
-                    ctx.fillText(texto, x, y + 10);
-                    x += colWidths[3];
-                    
-                    // Clasificación
-                    ctx.fillStyle = '#1a1a2e';
-                    ctx.font = '8px "Segoe UI", sans-serif';
-                    texto = item.clasificacion || '—';
-                    if (texto.length > 10) texto = texto.substring(0, 9) + '…';
-                    ctx.fillText(texto, x, y + 10);
-                    x += colWidths[4];
-                    
-                    // Cantidad
-                    const cantidad = typeof item.cantidad === 'number' ? item.cantidad : 0;
-                    const badgeColor = cantidad > 10 ? '#28a745' : cantidad > 5 ? '#ffc107' : '#dc3545';
-                    ctx.fillStyle = badgeColor;
-                    ctx.font = 'bold 9px "Courier New", monospace';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${cantidad}`, x + colWidths[5] / 2, y + 10);
+                    if (texto.length > 50) texto = texto.substring(0, 49) + '…';
+                    ctx.fillText(texto, x, y + 9);
                     
                     y += rowHeight;
                 }
                 
                 // Pie de página
-                y += 10;
+                y += 8;
                 ctx.fillStyle = 'rgba(26, 26, 46, 0.4)';
                 ctx.font = '8px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
@@ -329,10 +303,7 @@ class StockLoader {
 
             const idxUbicacion = cabeceras.indexOf('Ubicación');
             const idxReferencia = cabeceras.indexOf('Referencia');
-            const idxRefFabricante = cabeceras.indexOf('Referencia Fabricante');
             const idxDescripcion = cabeceras.indexOf('Descripción');
-            const idxClasificacion = cabeceras.indexOf('Clasificación');
-            const idxCantidad = cabeceras.indexOf('Cantidad');
 
             this.datos = [];
 
@@ -342,19 +313,13 @@ class StockLoader {
 
                 const ubicacion = idxUbicacion >= 0 ? String(row[idxUbicacion] || '').trim() : '';
                 const referencia = idxReferencia >= 0 ? String(row[idxReferencia] || '').trim() : '';
-                const refFabricante = idxRefFabricante >= 0 ? String(row[idxRefFabricante] || '').trim() : '';
                 const descripcion = idxDescripcion >= 0 ? String(row[idxDescripcion] || '').trim() : '';
-                const clasificacion = idxClasificacion >= 0 ? String(row[idxClasificacion] || '').trim() : '';
-                const cantidad = idxCantidad >= 0 ? parseFloat(row[idxCantidad]) || 0 : 0;
 
                 if (referencia || descripcion) {
                     this.datos.push({
                         ubicacion: ubicacion || '—',
                         referencia: referencia || '—',
-                        refFabricante: refFabricante || '—',
-                        descripcion: descripcion || '—',
-                        clasificacion: clasificacion || '—',
-                        cantidad: cantidad
+                        descripcion: descripcion || '—'
                     });
                 }
             }
@@ -398,9 +363,7 @@ class StockLoader {
             _normalizado: {
                 ubicacion: normalizarTexto(item.ubicacion || ''),
                 referencia: normalizarTexto(item.referencia || ''),
-                refFabricante: normalizarTexto(item.refFabricante || ''),
                 descripcion: normalizarTexto(item.descripcion || ''),
-                clasificacion: normalizarTexto(item.clasificacion || ''),
                 _original: { ...item }
             }
         }));
@@ -443,16 +406,10 @@ class StockLoader {
                 if (busquedaNormalizada) {
                     const cumpleBusqueda = 
                         (norm.referencia || '').includes(busquedaNormalizada) ||
-                        (norm.refFabricante || '').includes(busquedaNormalizada) ||
                         (norm.descripcion || '').includes(busquedaNormalizada) ||
-                        (norm.ubicacion || '').includes(busquedaNormalizada) ||
-                        (norm.clasificacion || '').includes(busquedaNormalizada);
+                        (norm.ubicacion || '').includes(busquedaNormalizada);
 
                     if (!cumpleBusqueda) return false;
-                }
-
-                if (categoriaNormalizada) {
-                    if ((norm.clasificacion || '') !== categoriaNormalizada) return false;
                 }
 
                 return true;
@@ -462,10 +419,7 @@ class StockLoader {
                 return {
                     ubicacion: original.ubicacion || '—',
                     referencia: original.referencia || '—',
-                    refFabricante: original.refFabricante || '—',
-                    descripcion: original.descripcion || '—',
-                    clasificacion: original.clasificacion || '—',
-                    cantidad: typeof original.cantidad === 'number' ? original.cantidad : 0
+                    descripcion: original.descripcion || '—'
                 };
             });
 
@@ -564,15 +518,12 @@ class StockApp {
                                 <tr>
                                     <th data-sort="ubicacion" style="cursor: pointer;">📍 Ubicación</th>
                                     <th data-sort="referencia" style="cursor: pointer;">Referencia</th>
-                                    <th data-sort="refFabricante" style="cursor: pointer;">Fabricante</th>
                                     <th data-sort="descripcion" style="cursor: pointer;">Descripción</th>
-                                    <th data-sort="clasificacion" style="cursor: pointer;">Clasificación</th>
-                                    <th data-sort="cantidad" style="cursor: pointer;">Cantidad</th>
                                 </tr>
                             </thead>
                             <tbody id="resultsTableBody">
                                 <tr>
-                                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                                    <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
                                         No hay resultados para mostrar
                                     </td>
                                 </tr>
@@ -695,7 +646,7 @@ class StockApp {
             this.elements.resultsSubtitle.textContent = `🔍 0 resultados encontrados para "${termino || categoria}"`;
             this.elements.resultsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                    <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
                         🔍 No se encontraron resultados
                         <br><span style="font-size: 0.8rem;">Prueba con otros términos de búsqueda</span>
                     </td>
@@ -743,24 +694,18 @@ class StockApp {
         if (paginaResultados.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                    <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
                         No hay resultados en esta página
                     </td>
                 </tr>
             `;
         } else {
             tbody.innerHTML = paginaResultados.map(item => {
-                const cantidad = item.cantidad || 0;
-                const stockClass = cantidad > 10 ? 'high' : cantidad > 5 ? 'medium' : 'low';
-                
                 return `
                     <tr>
                         <td><code style="font-size: 0.7rem; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${item.ubicacion}</code></td>
                         <td><strong>${item.referencia}</strong></td>
-                        <td style="font-size: 0.75rem; color: #666;">${item.refFabricante}</td>
                         <td>${item.descripcion}</td>
-                        <td><span style="font-size: 0.75rem; background: #e8e8e8; padding: 2px 8px; border-radius: 12px;">${item.clasificacion}</span></td>
-                        <td><span class="stock-badge ${stockClass}">${cantidad}</span></td>
                     </tr>
                 `;
             }).join('');
@@ -861,7 +806,6 @@ class StockApp {
             return;
         }
 
-        // Mostrar loading
         this._showMessage('🖼️ Generando imagen...', 'info', 0);
 
         const imageData = await this._generarImagen();

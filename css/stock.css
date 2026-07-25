@@ -167,7 +167,7 @@
 .stock-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
 }
 
 .stock-table thead {
@@ -176,7 +176,7 @@
 }
 
 .stock-table thead th {
-    padding: 12px 10px;
+    padding: 12px 12px;
     text-align: left;
     font-weight: 600;
     white-space: nowrap;
@@ -190,7 +190,7 @@
 }
 
 .stock-table tbody td {
-    padding: 10px 10px;
+    padding: 10px 12px;
     border-bottom: 1px solid #f0f0f0;
     color: #333;
     vertical-align: middle;
@@ -204,7 +204,7 @@
     border-bottom: none;
 }
 
-/* ====== BADGES ====== */
+/* ====== BADGES (eliminadas, se mantienen por si acaso) ====== */
 .stock-badge {
     display: inline-block;
     padding: 2px 10px;
@@ -308,12 +308,12 @@
 /* ====== RESPONSIVE ====== */
 @media (max-width: 768px) {
     .stock-table {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
     }
     
     .stock-table thead th,
     .stock-table tbody td {
-        padding: 6px 6px;
+        padding: 8px 8px;
     }
     
     .stock-table-container {
@@ -327,12 +327,12 @@
     }
     
     .stock-table {
-        font-size: 0.65rem;
+        font-size: 0.7rem;
     }
     
     .stock-table thead th,
     .stock-table tbody td {
-        padding: 4px 4px;
+        padding: 6px 6px;
     }
     
     .filter-group {
