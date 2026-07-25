@@ -1,5 +1,28 @@
 import { mostrarMensaje, debounce } from './utils.js';
 
+// ========== FUNCIÓN DE NORMALIZACIÓN DE TEXTO ==========
+
+/**
+ * Normaliza un texto para búsqueda:
+ * - Convierte a minúsculas
+ * - Elimina tildes
+ * - Elimina caracteres especiales
+ */
+function normalizarTexto(texto) {
+    if (!texto) return '';
+    
+    return String(texto)
+        .toLowerCase()
+        // Eliminar tildes
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        // Eliminar caracteres especiales (conservar letras, números y espacios)
+        .replace(/[^a-z0-9\s]/g, ' ')
+        // Eliminar espacios múltiples
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 // ========== DATOS DE EJEMPLO (FALLBACK) ==========
 
 const DATOS_EJEMPLO = [
@@ -20,6 +43,96 @@ const DATOS_EJEMPLO = [
         clasificacion: 'MOTORES',
         tipoUnidad: 'UD.',
         cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D4/F1',
+        referencia: '21034',
+        refFabricante: '306865',
+        descripcion: 'MOTORREDUCTOR R67 DT90L4 1,5 KW 1410/27 REV/MIN',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D5/F1',
+        referencia: '45464',
+        refFabricante: 'K47 DT90L4/BMG/H12',
+        descripcion: 'MOTOR CADENA',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D6/F1',
+        referencia: '21194',
+        refFabricante: '305620',
+        descripcion: 'MOTORREDUCTOR (TELESCOPIO) 11-00140',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D1/F1',
+        referencia: '45835',
+        refFabricante: '82029847-00001',
+        descripcion: 'Motorreductor:SA47TDRS80S4BGE',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D3/F1',
+        referencia: '45832',
+        refFabricante: '82052347-00001',
+        descripcion: 'Motorreductor:SF47DRS80M4BE2M',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D4/F1',
+        referencia: '45831',
+        refFabricante: '82052647-00001',
+        descripcion: 'Motorreductor:SF47DRS80M4BE2M',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D5/F1',
+        referencia: '16885',
+        refFabricante: '85093638',
+        descripcion: 'MOTORREDUCTOR SA47/T DRN80M4/BE1 M1A 0,75KW 1440/133 RPM',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A10/P1/H1/D1/F1',
+        referencia: '8390',
+        refFabricante: '00197003',
+        descripcion: 'CAUTIVO - RODILLO 50X650mm - ACANALADO',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 49
+    },
+    {
+        ubicacion: 'S1/A10/P2/H1/D1/F1',
+        referencia: '8694',
+        refFabricante: '00038614',
+        descripcion: 'CAUTIVO - RODILLO 50X1.5X650mm SK.11',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 131
+    },
+    {
+        ubicacion: 'S1/A10/P3/H1/D1/F1',
+        referencia: '47140',
+        refFabricante: '00198413',
+        descripcion: 'CAUTIVO - RODILLO CONICO NB=450 COMPLETO',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 70
     }
 ];
 
@@ -32,6 +145,8 @@ class StockLoader {
         this.estaCargando = false;
         this.categorias = [];
         this.usaEjemplo = false;
+        // Datos normalizados para búsqueda rápida
+        this.datosNormalizados = [];
     }
 
     async cargar(ruta = './data/Almacen.xlsx') {
@@ -68,54 +183,90 @@ class StockLoader {
                 console.warn('[StockLoader] ⚠️ No se pudo cargar el Excel. Usando datos de ejemplo.');
                 this.usaEjemplo = true;
                 this.datos = [...DATOS_EJEMPLO];
+                this._normalizarDatos();
                 this.categorias = [...new Set(this.datos.map(item => item.clasificacion))].sort();
                 this.estaCargando = false;
                 mostrarMensaje(`⚠️ Usando ${this.datos.length} datos de ejemplo (Excel no encontrado)`, 'info', 5000);
                 return this.datos;
             }
 
-            // LEER CON CABECERAS EN LA PRIMERA FILA
+            // LEER EL EXCEL FILA POR FILA
             const workbook = XLSX.read(dataCargada, { type: 'array' });
             const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(primeraHoja, { defval: '' });
+            
+            const filas = XLSX.utils.sheet_to_json(primeraHoja, { 
+                defval: '',
+                header: 1
+            });
 
-            console.log('[StockLoader] 📊 Registros encontrados:', json.length);
+            console.log('[StockLoader] 📊 Total de filas en Excel:', filas.length);
 
-            if (json.length === 0) {
-                console.warn('[StockLoader] ⚠️ El archivo está vacío. Usando datos de ejemplo.');
+            if (filas.length < 2) {
+                console.warn('[StockLoader] ⚠️ El archivo tiene menos de 2 filas. Usando datos de ejemplo.');
                 this.usaEjemplo = true;
                 this.datos = [...DATOS_EJEMPLO];
+                this._normalizarDatos();
                 this.categorias = [...new Set(this.datos.map(item => item.clasificacion))].sort();
                 this.estaCargando = false;
-                mostrarMensaje(`⚠️ Usando ${this.datos.length} datos de ejemplo (archivo vacío)`, 'info', 5000);
+                mostrarMensaje(`⚠️ Usando ${this.datos.length} datos de ejemplo (archivo sin datos)`, 'info', 5000);
                 return this.datos;
             }
 
-            // Mostrar primer registro para depuración
-            console.log('[StockLoader] 📄 Primer registro:', json[0]);
-            console.log('[StockLoader] 📋 Columnas disponibles:', Object.keys(json[0]));
+            // Buscar la fila de cabeceras
+            let cabeceras = null;
+            let inicioDatos = 0;
 
-            // PROCESAR DATOS
+            const primeraFila = filas[0] || [];
+            const esTitulo = primeraFila.some(celda => 
+                typeof celda === 'string' && 
+                (celda.includes('Listado') || celda.includes('mapa') || celda.includes('almacén'))
+            );
+
+            if (esTitulo) {
+                cabeceras = filas[1] || [];
+                inicioDatos = 2;
+                console.log('[StockLoader] 📋 Cabeceras encontradas en fila 2:', cabeceras);
+            } else {
+                cabeceras = filas[0] || [];
+                inicioDatos = 1;
+                console.log('[StockLoader] 📋 Cabeceras encontradas en fila 1:', cabeceras);
+            }
+
+            // Mapeo de índices de columna
+            const idxUbicacion = cabeceras.indexOf('Ubicación');
+            const idxReferencia = cabeceras.indexOf('Referencia');
+            const idxRefFabricante = cabeceras.indexOf('Referencia Fabricante');
+            const idxDescripcion = cabeceras.indexOf('Descripción');
+            const idxClasificacion = cabeceras.indexOf('Clasificación');
+            const idxTipoUnidad = cabeceras.indexOf('Tipo Unidad');
+            const idxCantidad = cabeceras.indexOf('Cantidad');
+
+            console.log('[StockLoader] 📌 Índices - Ubicación:', idxUbicacion, 'Referencia:', idxReferencia, 'Descripción:', idxDescripcion);
+
+            // Procesar datos
             this.datos = [];
 
-            for (const row of json) {
-                const ubicacion = row.Ubicación || row['Ubicación'] || '';
-                const referencia = row.Referencia || row['Referencia'] || '';
-                const refFabricante = row['Referencia Fabricante'] || '';
-                const descripcion = row.Descripción || row['Descripción'] || '';
-                const clasificacion = row.Clasificación || row['Clasificación'] || '';
-                const tipoUnidad = row['Tipo Unidad'] || 'UD.';
-                const cantidad = parseFloat(row.Cantidad || row['Cantidad'] || 0);
+            for (let i = inicioDatos; i < filas.length; i++) {
+                const row = filas[i];
+                if (!row || row.length === 0) continue;
+
+                const ubicacion = idxUbicacion >= 0 ? String(row[idxUbicacion] || '').trim() : '';
+                const referencia = idxReferencia >= 0 ? String(row[idxReferencia] || '').trim() : '';
+                const refFabricante = idxRefFabricante >= 0 ? String(row[idxRefFabricante] || '').trim() : '';
+                const descripcion = idxDescripcion >= 0 ? String(row[idxDescripcion] || '').trim() : '';
+                const clasificacion = idxClasificacion >= 0 ? String(row[idxClasificacion] || '').trim() : '';
+                const tipoUnidad = idxTipoUnidad >= 0 ? String(row[idxTipoUnidad] || '').trim() : 'UD.';
+                const cantidad = idxCantidad >= 0 ? parseFloat(row[idxCantidad]) || 0 : 0;
 
                 if (referencia || descripcion) {
                     this.datos.push({
-                        ubicacion: String(ubicacion).trim(),
-                        referencia: String(referencia).trim(),
-                        refFabricante: String(refFabricante).trim(),
-                        descripcion: String(descripcion).trim(),
-                        clasificacion: String(clasificacion).trim(),
-                        tipoUnidad: String(tipoUnidad).trim(),
-                        cantidad: isNaN(cantidad) ? 0 : cantidad
+                        ubicacion: ubicacion,
+                        referencia: referencia,
+                        refFabricante: refFabricante,
+                        descripcion: descripcion,
+                        clasificacion: clasificacion,
+                        tipoUnidad: tipoUnidad,
+                        cantidad: cantidad
                     });
                 }
             }
@@ -124,8 +275,10 @@ class StockLoader {
                 console.warn('[StockLoader] ⚠️ No se procesaron datos del Excel. Usando datos de ejemplo.');
                 this.usaEjemplo = true;
                 this.datos = [...DATOS_EJEMPLO];
+                this._normalizarDatos();
                 mostrarMensaje(`⚠️ Usando ${this.datos.length} datos de ejemplo (Excel vacío)`, 'info', 5000);
             } else {
+                this._normalizarDatos();
                 console.log(`[StockLoader] ✅ ${this.datos.length} repuestos procesados desde Excel`);
                 mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
             }
@@ -138,6 +291,7 @@ class StockLoader {
             console.error('[StockLoader] ❌ Error:', error);
             this.usaEjemplo = true;
             this.datos = [...DATOS_EJEMPLO];
+            this._normalizarDatos();
             this.categorias = [...new Set(this.datos.map(item => item.clasificacion))].sort();
             this.estaCargando = false;
             mostrarMensaje(`⚠️ Usando ${this.datos.length} datos de ejemplo (error: ${error.message})`, 'info', 5000);
@@ -145,32 +299,60 @@ class StockLoader {
         }
     }
 
+    /**
+     * Normaliza todos los textos de los datos para búsqueda
+     */
+    _normalizarDatos() {
+        this.datosNormalizados = this.datos.map(item => ({
+            ...item,
+            _normalizado: {
+                ubicacion: normalizarTexto(item.ubicacion),
+                referencia: normalizarTexto(item.referencia),
+                refFabricante: normalizarTexto(item.refFabricante),
+                descripcion: normalizarTexto(item.descripcion),
+                clasificacion: normalizarTexto(item.clasificacion),
+                // Guardamos el texto original para mostrar en los resultados
+                _original: item
+            }
+        }));
+    }
+
+    /**
+     * Busca y filtra los datos según los criterios (búsqueda insensible a acentos y mayúsculas)
+     */
     buscar(termino, categoria = '') {
         if (!termino && !categoria) {
             this.filtrados = [];
             return [];
         }
 
-        const busqueda = termino.toLowerCase().trim();
-        
-        this.filtrados = this.datos.filter(item => {
-            if (!busqueda) {
-                if (categoria && item.clasificacion !== categoria) return false;
+        const busquedaNormalizada = normalizarTexto(termino);
+        const categoriaNormalizada = normalizarTexto(categoria);
+
+        this.filtrados = this.datosNormalizados
+            .filter(item => {
+                const norm = item._normalizado;
+
+                // Si hay término de búsqueda, buscar en todos los campos
+                if (busquedaNormalizada) {
+                    const cumpleBusqueda = 
+                        norm.referencia.includes(busquedaNormalizada) ||
+                        norm.refFabricante.includes(busquedaNormalizada) ||
+                        norm.descripcion.includes(busquedaNormalizada) ||
+                        norm.ubicacion.includes(busquedaNormalizada) ||
+                        norm.clasificacion.includes(busquedaNormalizada);
+
+                    if (!cumpleBusqueda) return false;
+                }
+
+                // Si hay categoría, filtrar
+                if (categoriaNormalizada) {
+                    if (norm.clasificacion !== categoriaNormalizada) return false;
+                }
+
                 return true;
-            }
-
-            const cumpleBusqueda = 
-                item.referencia.toLowerCase().includes(busqueda) ||
-                item.refFabricante.toLowerCase().includes(busqueda) ||
-                item.descripcion.toLowerCase().includes(busqueda) ||
-                item.ubicacion.toLowerCase().includes(busqueda) ||
-                item.clasificacion.toLowerCase().includes(busqueda);
-
-            if (!cumpleBusqueda) return false;
-            if (categoria && item.clasificacion !== categoria) return false;
-
-            return true;
-        });
+            })
+            .map(item => item._original); // Devolver los datos originales
 
         return this.filtrados;
     }
