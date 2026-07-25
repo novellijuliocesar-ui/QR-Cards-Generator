@@ -1,19 +1,157 @@
-import { ExcelLoader } from './excel-loader.js';
 import { mostrarMensaje, debounce } from './utils.js';
+
+// ========== GESTOR DE REPUESTOS (STOCK) ==========
+
+class StockLoader {
+    constructor() {
+        this.datos = [];
+        this.filtrados = [];
+        this.estaCargando = false;
+        this.categorias = [];
+        this.criticidades = ['A', 'B', 'C'];
+    }
+
+    /**
+     * Carga el archivo Excel de Almacén
+     */
+    async cargar(ruta = './data/Almacen.xlsx') {
+        if (this.estaCargando) return;
+        this.estaCargando = true;
+
+        try {
+            // Intentar con diferentes rutas
+            const rutas = [
+                ruta,
+                '/QR-Cards-Generator/data/Almacen.xlsx',
+                './data/Almacen.xlsx',
+                'data/Almacen.xlsx',
+                '../data/Almacen.xlsx'
+            ];
+
+            let dataCargada = null;
+
+            for (const testRuta of rutas) {
+                try {
+                    console.log('[StockLoader] Probando ruta:', testRuta);
+                    const response = await fetch(testRuta);
+                    if (response.ok) {
+                        const data = await response.arrayBuffer();
+                        dataCargada = data;
+                        console.log('[StockLoader] ✅ Cargado desde:', testRuta);
+                        break;
+                    }
+                } catch (e) {
+                    console.warn('[StockLoader] Falló ruta:', testRuta);
+                }
+            }
+
+            if (!dataCargada) {
+                throw new Error('No se pudo cargar el archivo Almacen.xlsx');
+            }
+
+            const workbook = XLSX.read(dataCargada, { type: 'array' });
+            const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(primeraHoja);
+
+            this.datos = json
+                .filter(r => r.Ubicación || r.Referencia || r.Descripción)
+                .map(r => ({
+                    ubicacion: String(r.Ubicación || '').trim(),
+                    habilitado: String(r.Habilit || '').trim(),
+                    comportamiento: String(r.Comportamiento || '').trim(),
+                    maxRef: r['Nº Max. Ref.'] || 0,
+                    ultModif: r['Últ. Modific.'] || '',
+                    referencia: String(r.Referencia || '').trim(),
+                    refFabricante: String(r['Referencia Fabricante'] || '').trim(),
+                    descripcion: String(r.Descripción || '').trim(),
+                    clasificacion: String(r.Clasificación || '').trim(),
+                    criticidad: String(r.Criticidad || '').trim(),
+                    tipoUnidad: String(r['Tipo Unidad'] || '').trim(),
+                    cantidad: parseFloat(r.Cantidad) || 0,
+                    traspaso: String(r.Traspaso || '').trim()
+                }))
+                .filter(item => item.referencia || item.descripcion); // Filtrar filas vacías
+
+            // Extraer categorías únicas
+            this.categorias = [...new Set(this.datos.map(item => item.clasificacion).filter(c => c))].sort();
+
+            this.estaCargando = false;
+            mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
+            return this.datos;
+
+        } catch (error) {
+            this.estaCargando = false;
+            console.error('[StockLoader] Error:', error);
+            mostrarMensaje(`⚠️ Error al cargar: ${error.message}`, 'error', 5000);
+            return [];
+        }
+    }
+
+    /**
+     * Busca y filtra los datos según los criterios
+     */
+    buscar(termino, categoria = '', criticidad = '') {
+        if (!termino && !categoria && !criticidad) {
+            this.filtrados = [];
+            return [];
+        }
+
+        const busqueda = termino.toLowerCase().trim();
+        
+        this.filtrados = this.datos.filter(item => {
+            // Si no hay término de búsqueda, solo aplicar filtros
+            if (!busqueda) {
+                let cumple = true;
+                if (categoria) cumple = cumple && item.clasificacion === categoria;
+                if (criticidad) cumple = cumple && item.criticidad === criticidad;
+                return cumple;
+            }
+
+            // Búsqueda en múltiples campos
+            const cumpleBusqueda = 
+                item.referencia.toLowerCase().includes(busqueda) ||
+                item.refFabricante.toLowerCase().includes(busqueda) ||
+                item.descripcion.toLowerCase().includes(busqueda) ||
+                item.ubicacion.toLowerCase().includes(busqueda) ||
+                item.codigo?.toLowerCase().includes(busqueda) ||
+                item.clasificacion.toLowerCase().includes(busqueda);
+
+            if (!cumpleBusqueda) return false;
+
+            // Aplicar filtros de categoría y criticidad
+            if (categoria && item.clasificacion !== categoria) return false;
+            if (criticidad && item.criticidad !== criticidad) return false;
+
+            return true;
+        });
+
+        return this.filtrados;
+    }
+
+    obtenerDatos() {
+        return this.filtrados;
+    }
+
+    obtenerCategorias() {
+        return this.categorias;
+    }
+
+    obtenerCriticidades() {
+        return this.criticidades;
+    }
+}
 
 // ========== CONTROLADOR DE STOCK ==========
 
 class StockApp {
     constructor() {
-        this.excelLoader = new ExcelLoader();
+        this.loader = new StockLoader();
         this.datos = [];
-        this.categorias = new Map();
-        this.currentCategory = '';
+        this.filtrados = [];
+        this.busquedaRealizada = false;
+
         this.container = document.getElementById('stockPage');
-        this.searchInput = null;
-        this.categorySelect = null;
-        this.tableBody = null;
-        this.resultsCount = null;
+        this.elements = {};
         this.messageEl = null;
 
         this.init();
@@ -23,194 +161,211 @@ class StockApp {
         this._buildUI();
         this._setupEventListeners();
         await this._cargarDatos();
-        this._poblarCategorias();
-        this._renderTabla();
+        this._poblarFiltros();
     }
 
     _buildUI() {
-        if (!this.container) {
-            console.error('[StockApp] No se encontró el contenedor stockPage');
-            return;
-        }
-
         this.container.innerHTML = `
             <div class="stock-header">
-                <h1>📦 Búsqueda Stock Almacén</h1>
-                <p>Consulta el stock de los activos por categoría</p>
+                <h1>🔧 Búsqueda de Repuestos</h1>
+                <p>Consulta el stock del almacén</p>
             </div>
 
             <div id="stockMessage" class="message" role="alert" aria-live="polite"></div>
 
-            <div class="category-selector">
-                <label for="categorySelect">🏷️ Filtrar por categoría</label>
-                <select id="categorySelect">
-                    <option value="">-- Todas las categorías --</option>
-                </select>
-            </div>
-
-            <div class="category-selector">
-                <label for="stockSearchInput">🔍 Buscar en stock</label>
+            <div class="search-section">
+                <label for="stockSearchInput">🔍 Buscar</label>
                 <input 
                     type="text" 
                     id="stockSearchInput" 
-                    placeholder="Buscar por código o descripción..." 
+                    placeholder="Buscar por referencia, fabricante, descripción o ubicación..." 
                     autocomplete="off"
                 >
             </div>
 
-            <div class="stock-table-container">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <strong id="resultsCount">Total: 0 activos</strong>
-                    <span style="font-size: 0.8rem; color: #666;">⬅️ Desliza para volver</span>
+            <div class="filters-section">
+                <div class="filter-group">
+                    <label for="categoryFilter">🏷️ Clasificación</label>
+                    <select id="categoryFilter">
+                        <option value="">-- Todas --</option>
+                    </select>
                 </div>
-                <table class="stock-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Código</th>
-                            <th>Descripción</th>
-                            <th>Categoría</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stockTableBody">
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 40px;">
-                                ⏳ Cargando datos...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="filter-group">
+                    <label for="criticityFilter">⚠️ Criticidad</label>
+                    <select id="criticityFilter">
+                        <option value="">-- Todas --</option>
+                        <option value="A">A - Crítica</option>
+                        <option value="B">B - Media</option>
+                        <option value="C">C - Baja</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="searchBtn">
+                🔍 Buscar Repuestos
+            </button>
+
+            <div id="resultsContainer" style="display: none;">
+                <div class="results-header">
+                    <span id="resultsCount">0 resultados</span>
+                    <button class="btn btn-secondary btn-small" id="clearResultsBtn">
+                        ✖ Limpiar
+                    </button>
+                </div>
+                <div class="stock-table-container" id="tableContainer">
+                    <table class="stock-table">
+                        <thead>
+                            <tr>
+                                <th>📍 Ubicación</th>
+                                <th>Referencia</th>
+                                <th>Fabricante</th>
+                                <th>Descripción</th>
+                                <th>Clasificación</th>
+                                <th>Criticidad</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                                    Introduce un criterio de búsqueda y pulsa "Buscar"
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         `;
 
-        this.searchInput = document.getElementById('stockSearchInput');
-        this.categorySelect = document.getElementById('categorySelect');
-        this.tableBody = document.getElementById('stockTableBody');
-        this.resultsCount = document.getElementById('resultsCount');
-        this.messageEl = document.getElementById('stockMessage');
+        this.elements = {
+            searchInput: this.container.querySelector('#stockSearchInput'),
+            categoryFilter: this.container.querySelector('#categoryFilter'),
+            criticityFilter: this.container.querySelector('#criticityFilter'),
+            searchBtn: this.container.querySelector('#searchBtn'),
+            clearBtn: this.container.querySelector('#clearResultsBtn'),
+            resultsContainer: this.container.querySelector('#resultsContainer'),
+            tableBody: this.container.querySelector('#stockTableBody'),
+            resultsCount: this.container.querySelector('#resultsCount'),
+        };
+        this.messageEl = this.container.querySelector('#stockMessage');
     }
 
     _setupEventListeners() {
-        const debouncedSearch = debounce(() => this._renderTabla(), 300);
-        if (this.searchInput) {
-            this.searchInput.addEventListener('input', debouncedSearch);
-        }
-        if (this.categorySelect) {
-            this.categorySelect.addEventListener('change', () => {
-                this.currentCategory = this.categorySelect.value;
-                this._renderTabla();
-            });
+        // Botón de búsqueda
+        this.elements.searchBtn.addEventListener('click', () => this._buscar());
+
+        // Enter en el campo de búsqueda
+        this.elements.searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this._buscar();
+            }
+        });
+
+        // Limpiar resultados
+        if (this.elements.clearBtn) {
+            this.elements.clearBtn.addEventListener('click', () => this._limpiar());
         }
     }
 
     async _cargarDatos() {
-        this.datos = await this.excelLoader.cargar();
-        this._extraerCategorias();
-        this._showMessage(`✅ ${this.datos.length} activos cargados`, 'success');
+        this._showMessage('📂 Cargando datos de repuestos...', 'info', 0);
+        this.datos = await this.loader.cargar();
+        if (this.datos.length === 0) {
+            this._showMessage('⚠️ No se pudieron cargar los datos', 'error', 5000);
+        }
     }
 
-    _extraerCategorias() {
-        this.categorias = new Map();
+    _poblarFiltros() {
+        const select = this.elements.categoryFilter;
+        const categorias = this.loader.obtenerCategorias();
         
-        this.datos.forEach(item => {
-            let categoria = 'General';
-            if (item.desc) {
-                const match = item.desc.match(/^([A-ZÁÉÍÓÚÑ\s]+?)(?:\s|$)/);
-                if (match) {
-                    categoria = match[1].trim();
-                } else {
-                    categoria = item.codigo.substring(0, 4) || 'General';
-                }
-            }
-            
-            if (!this.categorias.has(categoria)) {
-                this.categorias.set(categoria, []);
-            }
-            this.categorias.get(categoria).push(item);
-        });
-    }
-
-    _poblarCategorias() {
-        if (!this.categorySelect) return;
-        
-        const select = this.categorySelect;
-        const categoriasOrdenadas = Array.from(this.categorias.keys()).sort();
-        
-        select.innerHTML = '<option value="">-- Todas las categorías --</option>';
-        
-        categoriasOrdenadas.forEach(cat => {
+        select.innerHTML = '<option value="">-- Todas --</option>';
+        categorias.forEach(cat => {
             const opt = document.createElement('option');
             opt.value = cat;
-            opt.textContent = `${cat} (${this.categorias.get(cat).length})`;
+            opt.textContent = cat;
             select.appendChild(opt);
         });
     }
 
-    _renderTabla() {
-        if (!this.tableBody || !this.resultsCount) return;
-        
-        const searchTerm = this.searchInput?.value?.toLowerCase().trim() || '';
-        const category = this.currentCategory;
-        
-        let filtered = this.datos;
-        
-        if (category) {
-            filtered = this.categorias.get(category) || [];
-        }
-        
-        if (searchTerm) {
-            filtered = filtered.filter(item => 
-                item.codigo.toLowerCase().includes(searchTerm) ||
-                item.desc.toLowerCase().includes(searchTerm) ||
-                item.id.includes(searchTerm)
-            );
+    _buscar() {
+        const termino = this.elements.searchInput.value;
+        const categoria = this.elements.categoryFilter.value;
+        const criticidad = this.elements.criticityFilter.value;
+
+        // Validar que haya algún criterio
+        if (!termino && !categoria && !criticidad) {
+            this._showMessage('⚠️ Introduce un término de búsqueda o selecciona un filtro', 'info', 3000);
+            return;
         }
 
-        if (filtered.length === 0) {
-            this.tableBody.innerHTML = `
+        this.filtrados = this.loader.buscar(termino, categoria, criticidad);
+        this.busquedaRealizada = true;
+
+        this._renderResultados();
+    }
+
+    _renderResultados() {
+        const container = this.elements.resultsContainer;
+        const tbody = this.elements.tableBody;
+        const count = this.elements.resultsCount;
+
+        container.style.display = 'block';
+
+        if (this.filtrados.length === 0) {
+            tbody.innerHTML = `
                 <tr>
-                    <td colspan="5">
-                        <div class="no-results">
-                            <div class="icon">🔍</div>
-                            <p>No se encontraron resultados</p>
-                            <p style="font-size: 0.8rem; color: #999;">Prueba con otro término de búsqueda</p>
-                        </div>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                        🔍 No se encontraron resultados
+                        <br><span style="font-size: 0.8rem;">Prueba con otros términos de búsqueda</span>
                     </td>
                 </tr>
             `;
-        } else {
-            this.tableBody.innerHTML = filtered.map(item => {
-                const estado = this._getEstado(item);
-                const badgeClass = estado === 'Alto' ? 'high' : estado === 'Medio' ? 'medium' : 'low';
-                return `
-                    <tr>
-                        <td><strong>${item.id}</strong></td>
-                        <td><code>${item.codigo}</code></td>
-                        <td>${item.desc}</td>
-                        <td>${this._getCategoria(item)}</td>
-                        <td><span class="stock-badge ${badgeClass}">${estado}</span></td>
-                    </tr>
-                `;
-            }).join('');
+            count.textContent = '0 resultados';
+            return;
         }
 
-        this.resultsCount.textContent = `Total: ${filtered.length} activos`;
+        // Mostrar resultados con la ubicación en primer lugar
+        tbody.innerHTML = this.filtrados.map(item => {
+            const badgeClass = this._getCriticidadClass(item.criticidad);
+            const cantidad = item.cantidad;
+            const stockClass = cantidad > 10 ? 'high' : cantidad > 5 ? 'medium' : 'low';
+            const unidad = item.tipoUnidad || 'UD.';
+
+            return `
+                <tr>
+                    <td><code style="font-size: 0.7rem; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${item.ubicacion}</code></td>
+                    <td><strong>${item.referencia}</strong></td>
+                    <td style="font-size: 0.75rem; color: #666;">${item.refFabricante}</td>
+                    <td>${item.descripcion.substring(0, 60)}${item.descripcion.length > 60 ? '...' : ''}</td>
+                    <td><span style="font-size: 0.75rem; background: #e8e8e8; padding: 2px 8px; border-radius: 12px;">${item.clasificacion}</span></td>
+                    <td><span class="stock-badge ${badgeClass}">${item.criticidad}</span></td>
+                    <td><span class="stock-badge ${stockClass}">${cantidad} ${unidad}</span></td>
+                </tr>
+            `;
+        }).join('');
+
+        count.textContent = `${this.filtrados.length} resultados`;
+        this._showMessage(`✅ ${this.filtrados.length} repuestos encontrados`, 'success', 2000);
     }
 
-    _getEstado(item) {
-        const seed = parseInt(item.id) || 0;
-        const remainder = seed % 3;
-        return remainder === 0 ? 'Alto' : remainder === 1 ? 'Medio' : 'Bajo';
+    _limpiar() {
+        this.filtrados = [];
+        this.busquedaRealizada = false;
+        this.elements.searchInput.value = '';
+        this.elements.categoryFilter.value = '';
+        this.elements.criticityFilter.value = '';
+        this.elements.resultsContainer.style.display = 'none';
+        this._showMessage('🔄 Búsqueda limpiada', 'info', 2000);
     }
 
-    _getCategoria(item) {
-        for (const [cat, items] of this.categorias) {
-            if (items.some(i => i.id === item.id && i.codigo === item.codigo)) {
-                return cat;
-            }
-        }
-        return 'General';
+    _getCriticidadClass(criticidad) {
+        const map = {
+            'A': 'high',
+            'B': 'medium',
+            'C': 'low'
+        };
+        return map[criticidad] || 'low';
     }
 
     _showMessage(texto, tipo = 'info', duration = 3000) {
