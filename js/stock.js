@@ -35,7 +35,6 @@ class ResultsRenderer {
                     return;
                 }
 
-                // Crear canvas
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
@@ -49,7 +48,6 @@ class ResultsRenderer {
                 canvas.width = maxWidth;
                 canvas.height = totalHeight;
                 
-                // Fondo con gradiente
                 const gradiente = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 gradiente.addColorStop(0, '#F2C200');
                 gradiente.addColorStop(0.3, '#F5D530');
@@ -57,21 +55,18 @@ class ResultsRenderer {
                 ctx.fillStyle = gradiente;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // Fondo blanco para el contenido
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
                 ResultsRenderer._dibujarRectRedondeado(ctx, padding, padding, canvas.width - padding * 2, canvas.height - padding * 2, 16);
                 ctx.fill();
                 
                 let y = padding + 15;
                 
-                // Título
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 18px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText('📦 Resultados de Búsqueda', canvas.width / 2, y + 20);
                 y += 35;
                 
-                // Subtítulo
                 ctx.font = '12px "Segoe UI", sans-serif';
                 ctx.fillStyle = '#666';
                 let subtitulo = `🔍 ${datosValidos.length} resultados encontrados`;
@@ -80,7 +75,6 @@ class ResultsRenderer {
                 ctx.fillText(subtitulo, canvas.width / 2, y + 12);
                 y += 30;
                 
-                // Línea separadora
                 ctx.strokeStyle = '#e0e0e0';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -89,7 +83,6 @@ class ResultsRenderer {
                 ctx.stroke();
                 y += 10;
                 
-                // Cabeceras
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 11px "Courier New", monospace';
                 ctx.textAlign = 'left';
@@ -107,7 +100,6 @@ class ResultsRenderer {
                 });
                 y += 18;
                 
-                // Línea separadora de cabeceras
                 ctx.strokeStyle = '#1a1a2e';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
@@ -115,7 +107,6 @@ class ResultsRenderer {
                 ctx.lineTo(xInicial + colWidths.reduce((a, b) => a + b, 0), y - 4);
                 ctx.stroke();
                 
-                // Datos
                 const maxDisplay = Math.min(datosValidos.length, 30);
                 ctx.font = '10px "Segoe UI", sans-serif';
                 
@@ -125,7 +116,6 @@ class ResultsRenderer {
                     
                     x = xInicial;
                     
-                    // Ubicación
                     ctx.fillStyle = '#333';
                     ctx.textAlign = 'left';
                     let texto = item.ubicacion || '—';
@@ -133,7 +123,6 @@ class ResultsRenderer {
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[0];
                     
-                    // Referencia
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = 'bold 10px "Courier New", monospace';
                     texto = item.referencia || '—';
@@ -142,7 +131,6 @@ class ResultsRenderer {
                     x += colWidths[1];
                     ctx.font = '10px "Segoe UI", sans-serif';
                     
-                    // Fabricante
                     ctx.fillStyle = '#555';
                     ctx.font = '9px "Segoe UI", sans-serif';
                     texto = item.refFabricante || '—';
@@ -150,7 +138,6 @@ class ResultsRenderer {
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[2];
                     
-                    // Descripción
                     ctx.fillStyle = '#333';
                     ctx.font = '10px "Segoe UI", sans-serif';
                     texto = item.descripcion || '—';
@@ -158,7 +145,6 @@ class ResultsRenderer {
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[3];
                     
-                    // Clasificación
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = '9px "Segoe UI", sans-serif';
                     texto = item.clasificacion || '—';
@@ -166,7 +152,6 @@ class ResultsRenderer {
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[4];
                     
-                    // Cantidad
                     const cantidad = typeof item.cantidad === 'number' ? item.cantidad : 0;
                     const badgeColor = cantidad > 10 ? '#28a745' : cantidad > 5 ? '#ffc107' : '#dc3545';
                     ctx.fillStyle = badgeColor;
@@ -184,7 +169,6 @@ class ResultsRenderer {
                     ctx.fillText(`... y ${datosValidos.length - 30} resultados más`, canvas.width / 2, y + 10);
                 }
                 
-                // Pie de página
                 y += 15;
                 ctx.fillStyle = 'rgba(26, 26, 46, 0.5)';
                 ctx.font = '9px "Segoe UI", sans-serif';
@@ -218,7 +202,7 @@ class ResultsRenderer {
     }
 }
 
-// ========== DATOS DE EJEMPLO ==========
+// ========== DATOS DE EJEMPLO (expandidos para pruebas) ==========
 
 const DATOS_EJEMPLO = [
     {
@@ -506,14 +490,23 @@ class StockLoader {
     }
 
     buscar(termino, categoria = '') {
+        // Validar que haya datos
+        if (!this.datos || this.datos.length === 0) {
+            console.warn('[StockLoader] No hay datos cargados');
+            this.filtrados = [];
+            return [];
+        }
+
         // Validar que haya datos normalizados
         if (!this.datosNormalizados || this.datosNormalizados.length === 0) {
+            console.warn('[StockLoader] No hay datos normalizados');
             this.filtrados = [];
             return [];
         }
 
         // Si no hay término ni categoría, devolver vacío
         if (!termino && !categoria) {
+            console.log('[StockLoader] Sin criterios de búsqueda');
             this.filtrados = [];
             return [];
         }
@@ -521,11 +514,24 @@ class StockLoader {
         const busquedaNormalizada = normalizarTexto(termino);
         const categoriaNormalizada = normalizarTexto(categoria);
 
-        console.log('[StockLoader] Buscando:', { termino, busquedaNormalizada, categoria, categoriaNormalizada });
-        console.log('[StockLoader] Datos disponibles:', this.datosNormalizados.length);
+        console.log('[StockLoader] Buscando:', { 
+            termino, 
+            busquedaNormalizada: busquedaNormalizada || '(vacío)', 
+            categoria, 
+            categoriaNormalizada: categoriaNormalizada || '(vacío)',
+            totalDatos: this.datosNormalizados.length 
+        });
 
         // Si hay término de búsqueda pero está vacío después de normalizar
         if (termino && !busquedaNormalizada) {
+            console.log('[StockLoader] El término se normalizó a vacío');
+            this.filtrados = [];
+            return [];
+        }
+
+        // Si solo hay categoría y está vacía
+        if (categoria && !categoriaNormalizada) {
+            console.log('[StockLoader] La categoría se normalizó a vacío');
             this.filtrados = [];
             return [];
         }
@@ -556,7 +562,7 @@ class StockLoader {
             })
             .map(item => item._original);
 
-        console.log('[StockLoader] Resultados encontrados:', this.filtrados.length);
+        console.log(`[StockLoader] ✅ ${this.filtrados.length} resultados encontrados`);
         return this.filtrados;
     }
 
@@ -704,10 +710,10 @@ class StockApp {
     }
 
     async _buscar() {
-        const termino = this.elements.searchInput.value;
+        const termino = this.elements.searchInput.value.trim();
         const categoria = this.elements.categoryFilter.value;
 
-        console.log('[StockApp] Buscando:', { termino, categoria });
+        console.log('[StockApp] 🔍 Buscando:', { termino, categoria });
 
         if (!termino && !categoria) {
             this._showMessage('⚠️ Introduce un término de búsqueda o selecciona una categoría', 'info', 3000);
@@ -720,10 +726,21 @@ class StockApp {
         this.filtrados = this.loader.buscar(termino, categoria);
         this.cachedImage = null;
 
-        console.log('[StockApp] Resultados:', this.filtrados.length);
+        console.log('[StockApp] 📊 Resultados:', this.filtrados.length);
 
         if (this.filtrados.length === 0) {
-            this._showMessage('🔍 No se encontraron resultados', 'info', 3000);
+            this._showMessage(`🔍 No se encontraron resultados para "${termino || categoria}"`, 'info', 3000);
+            // Mostrar mensaje en la pantalla de resultados también
+            this.elements.resultsScreen.style.display = 'block';
+            this.elements.searchScreen.style.display = 'none';
+            this.elements.resultsSubtitle.textContent = `🔍 0 resultados encontrados para "${termino || categoria}"`;
+            this.elements.resultsContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #999;">
+                    <p style="font-size: 48px; margin: 0;">🔍</p>
+                    <p>No se encontraron resultados</p>
+                    <p style="font-size: 0.8rem;">Prueba con otros términos de búsqueda</p>
+                </div>
+            `;
             return;
         }
 
@@ -748,7 +765,7 @@ class StockApp {
         `;
 
         try {
-            console.log('[StockApp] Generando imagen para', this.filtrados.length, 'resultados');
+            console.log('[StockApp] 🖼️ Generando imagen para', this.filtrados.length, 'resultados');
             
             this.cachedImage = await ResultsRenderer.generarImagen(
                 this.filtrados, 
@@ -763,14 +780,29 @@ class StockApp {
             this._showMessage(`✅ ${this.filtrados.length} resultados encontrados`, 'success', 2000);
 
         } catch (error) {
-            console.error('[StockApp] Error generando imagen:', error);
-            this.elements.resultsContainer.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #999;">
-                    <p>❌ Error al generar la vista de resultados</p>
-                    <p style="font-size: 0.8rem;">${error.message}</p>
-                </div>
-            `;
-            this._showMessage('❌ Error al generar la vista: ' + error.message, 'error', 3000);
+            console.error('[StockApp] ❌ Error generando imagen:', error);
+            
+            // Mostrar los resultados en texto plano como fallback
+            let html = '<div style="padding: 10px; text-align: left; font-size: 12px;">';
+            html += `<p style="font-weight: bold; text-align: center;">${this.filtrados.length} resultados encontrados</p>`;
+            html += '<ul style="list-style: none; padding: 0;">';
+            const maxDisplay = Math.min(this.filtrados.length, 20);
+            for (let i = 0; i < maxDisplay; i++) {
+                const item = this.filtrados[i];
+                html += `<li style="padding: 4px 0; border-bottom: 1px solid #eee;">
+                    <strong>${item.ubicacion || '—'}</strong> - 
+                    ${item.referencia || '—'} - 
+                    ${item.descripcion ? item.descripcion.substring(0, 40) : '—'}
+                    <span style="float: right; font-weight: bold; color: ${item.cantidad > 10 ? '#28a745' : item.cantidad > 5 ? '#ffc107' : '#dc3545'};">${item.cantidad || 0}</span>
+                </li>`;
+            }
+            if (this.filtrados.length > 20) {
+                html += `<li style="padding: 4px 0; text-align: center; color: #999;">... y ${this.filtrados.length - 20} más</li>`;
+            }
+            html += '</ul></div>';
+            
+            this.elements.resultsContainer.innerHTML = html;
+            this._showMessage('⚠️ Vista simplificada (error al generar imagen)', 'info', 3000);
         }
     }
 
