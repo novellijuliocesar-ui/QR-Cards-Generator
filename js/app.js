@@ -25,6 +25,12 @@ class App {
     }
 
     _buildUI() {
+        // Verificar que el contenedor existe
+        if (!this.container) {
+            console.error('[App] No se encontró el contenedor qrPage');
+            return;
+        }
+
         this.container.innerHTML = `
             <section class="selection-screen">
                 <header class="header">
@@ -84,41 +90,62 @@ class App {
             </div>
         `;
 
+        // CORREGIDO: Usar this.container.querySelector en lugar de getElementById
         this.elements = {
             selectionScreen: this.container.querySelector('.selection-screen'),
-            cardScreen: this.container.getElementById('cardScreen'),
-            loading: this.container.getElementById('qrLoading'),
-            searchInput: this.container.getElementById('searchInput'),
-            activoSelect: this.container.getElementById('activoSelect'),
-            generateBtn: this.container.getElementById('generateBtn'),
-            downloadBtn: this.container.getElementById('downloadCardBtn'),
-            shareBtn: this.container.getElementById('shareCardBtn'),
-            backBtn: this.container.getElementById('backBtn'),
-            cardNumber: this.container.getElementById('cardNumber'),
-            cardQr: this.container.getElementById('cardQr'),
-            cardCode: this.container.getElementById('cardCode'),
-            cardDesc: this.container.getElementById('cardDesc'),
+            cardScreen: this.container.querySelector('#cardScreen'),
+            loading: this.container.querySelector('#qrLoading'),
+            searchInput: this.container.querySelector('#searchInput'),
+            activoSelect: this.container.querySelector('#activoSelect'),
+            generateBtn: this.container.querySelector('#generateBtn'),
+            downloadBtn: this.container.querySelector('#downloadCardBtn'),
+            shareBtn: this.container.querySelector('#shareCardBtn'),
+            backBtn: this.container.querySelector('#backBtn'),
+            cardNumber: this.container.querySelector('#cardNumber'),
+            cardQr: this.container.querySelector('#cardQr'),
+            cardCode: this.container.querySelector('#cardCode'),
+            cardDesc: this.container.querySelector('#cardDesc'),
         };
-        this.messageEl = this.container.getElementById('qrMessage');
+        this.messageEl = this.container.querySelector('#qrMessage');
     }
 
     _setupEventListeners() {
         const debouncedSearch = debounce(this._handleSearch.bind(this), 300);
-        this.elements.searchInput.addEventListener('input', debouncedSearch);
-        this.elements.activoSelect.addEventListener('change', this._handleSelect.bind(this));
-        this.elements.generateBtn.addEventListener('click', this._handleGenerate.bind(this));
-        this.elements.downloadBtn.addEventListener('click', this._handleDownload.bind(this));
-        this.elements.shareBtn.addEventListener('click', this._handleShare.bind(this));
-        this.elements.backBtn.addEventListener('click', this._handleBack.bind(this));
+        
+        if (this.elements.searchInput) {
+            this.elements.searchInput.addEventListener('input', debouncedSearch);
+        }
+        if (this.elements.activoSelect) {
+            this.elements.activoSelect.addEventListener('change', this._handleSelect.bind(this));
+        }
+        if (this.elements.generateBtn) {
+            this.elements.generateBtn.addEventListener('click', this._handleGenerate.bind(this));
+        }
+        if (this.elements.downloadBtn) {
+            this.elements.downloadBtn.addEventListener('click', this._handleDownload.bind(this));
+        }
+        if (this.elements.shareBtn) {
+            this.elements.shareBtn.addEventListener('click', this._handleShare.bind(this));
+        }
+        if (this.elements.backBtn) {
+            this.elements.backBtn.addEventListener('click', this._handleBack.bind(this));
+        }
     }
 
     async _cargarDatos() {
         this.datos = await this.excelLoader.cargar();
         this._poblarSelect();
+        
+        // Si no hay datos, mostrar mensaje
+        if (this.datos.length === 0) {
+            this._showMessage('⚠️ No se pudieron cargar los datos. Usando datos de ejemplo.', 'error', 5000);
+        }
     }
 
     _poblarSelect() {
         const select = this.elements.activoSelect;
+        if (!select) return;
+        
         const data = this.excelLoader.obtenerDatos();
         
         select.innerHTML = '<option value="">-- Seleccionar --</option>';
@@ -139,7 +166,7 @@ class App {
     }
 
     _handleSearch() {
-        const term = this.elements.searchInput.value;
+        const term = this.elements.searchInput?.value || '';
         this.excelLoader.filtrar(term);
         this._poblarSelect();
 
@@ -152,7 +179,7 @@ class App {
     }
 
     _handleSelect() {
-        const index = parseInt(this.elements.activoSelect.value);
+        const index = parseInt(this.elements.activoSelect?.value || '');
         this.currentItem = this.excelLoader.obtenerPorIndice(index);
         
         if (this.currentItem) {
@@ -175,9 +202,15 @@ class App {
             await this._mostrarQR(id);
             this.cachedImage = await CardRenderer.generarImagen(id, codigo, desc);
             
-            this.elements.cardNumber.textContent = id;
-            this.elements.cardCode.textContent = codigo;
-            this.elements.cardDesc.textContent = desc || 'Sin descripción';
+            if (this.elements.cardNumber) {
+                this.elements.cardNumber.textContent = id;
+            }
+            if (this.elements.cardCode) {
+                this.elements.cardCode.textContent = codigo;
+            }
+            if (this.elements.cardDesc) {
+                this.elements.cardDesc.textContent = desc || 'Sin descripción';
+            }
 
             this._showCard();
 
@@ -192,6 +225,8 @@ class App {
 
     async _mostrarQR(id) {
         const container = this.elements.cardQr;
+        if (!container) return;
+        
         container.innerHTML = '';
         const canvas = await QRGenerator.generarQR(id, 200, 1);
         container.appendChild(canvas);
@@ -211,7 +246,9 @@ class App {
             const nombre = sanitizarNombre(this.currentItem.codigo);
             link.download = `tarjeta-${nombre}.png`;
             link.href = img;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
             this._showMessage('📥 Tarjeta descargada', 'success');
         } catch (error) {
             console.error('Error:', error);
@@ -254,8 +291,12 @@ class App {
     _handleBack() {
         this.currentItem = null;
         this.cachedImage = null;
-        this.elements.searchInput.value = '';
-        this.elements.activoSelect.value = '';
+        if (this.elements.searchInput) {
+            this.elements.searchInput.value = '';
+        }
+        if (this.elements.activoSelect) {
+            this.elements.activoSelect.value = '';
+        }
         this.excelLoader.filtrar('');
         this._poblarSelect();
         
@@ -264,23 +305,39 @@ class App {
     }
 
     _showLoading(show) {
-        this.elements.loading.hidden = !show;
+        if (this.elements.loading) {
+            this.elements.loading.hidden = !show;
+        }
     }
 
     _showCard() {
-        this.elements.selectionScreen.hidden = true;
-        this.elements.cardScreen.hidden = false;
-        this.elements.loading.hidden = true;
+        if (this.elements.selectionScreen) {
+            this.elements.selectionScreen.hidden = true;
+        }
+        if (this.elements.cardScreen) {
+            this.elements.cardScreen.hidden = false;
+        }
+        if (this.elements.loading) {
+            this.elements.loading.hidden = true;
+        }
     }
 
     _hideCard() {
-        this.elements.cardScreen.hidden = true;
+        if (this.elements.cardScreen) {
+            this.elements.cardScreen.hidden = true;
+        }
     }
 
     _showSelection() {
-        this.elements.selectionScreen.hidden = false;
-        this.elements.cardScreen.hidden = true;
-        this.elements.loading.hidden = true;
+        if (this.elements.selectionScreen) {
+            this.elements.selectionScreen.hidden = false;
+        }
+        if (this.elements.cardScreen) {
+            this.elements.cardScreen.hidden = true;
+        }
+        if (this.elements.loading) {
+            this.elements.loading.hidden = true;
+        }
     }
 
     _showMessage(texto, tipo = 'info', duration = 3000) {
