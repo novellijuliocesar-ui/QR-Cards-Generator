@@ -8,7 +8,6 @@ class StockLoader {
         this.filtrados = [];
         this.estaCargando = false;
         this.categorias = [];
-        this.criticidades = ['A', 'B', 'C'];
     }
 
     /**
@@ -25,10 +24,13 @@ class StockLoader {
                 '/QR-Cards-Generator/data/Almacen.xlsx',
                 './data/Almacen.xlsx',
                 'data/Almacen.xlsx',
-                '../data/Almacen.xlsx'
+                '../data/Almacen.xlsx',
+                './Almacen.xlsx',
+                '/data/Almacen.xlsx'
             ];
 
             let dataCargada = null;
+            let rutaExitosa = '';
 
             for (const testRuta of rutas) {
                 try {
@@ -37,21 +39,48 @@ class StockLoader {
                     if (response.ok) {
                         const data = await response.arrayBuffer();
                         dataCargada = data;
+                        rutaExitosa = testRuta;
                         console.log('[StockLoader] ✅ Cargado desde:', testRuta);
                         break;
                     }
                 } catch (e) {
-                    console.warn('[StockLoader] Falló ruta:', testRuta);
+                    console.warn('[StockLoader] Falló ruta:', testRuta, e.message);
                 }
             }
 
             if (!dataCargada) {
-                throw new Error('No se pudo cargar el archivo Almacen.xlsx');
+                // Intentar con el nombre del archivo original (con doble punto)
+                const rutasAlternativas = [
+                    './data/DOC-20251215-WA0003..xlsx',
+                    '/QR-Cards-Generator/data/DOC-20251215-WA0003..xlsx'
+                ];
+                
+                for (const testRuta of rutasAlternativas) {
+                    try {
+                        console.log('[StockLoader] Probando ruta alternativa:', testRuta);
+                        const response = await fetch(testRuta);
+                        if (response.ok) {
+                            const data = await response.arrayBuffer();
+                            dataCargada = data;
+                            rutaExitosa = testRuta;
+                            console.log('[StockLoader] ✅ Cargado desde:', testRuta);
+                            break;
+                        }
+                    } catch (e) {
+                        console.warn('[StockLoader] Falló ruta:', testRuta);
+                    }
+                }
+            }
+
+            if (!dataCargada) {
+                throw new Error('No se pudo cargar el archivo Almacen.xlsx. Verifica que el archivo existe en /data/');
             }
 
             const workbook = XLSX.read(dataCargada, { type: 'array' });
             const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
             const json = XLSX.utils.sheet_to_json(primeraHoja);
+
+            console.log('[StockLoader] Registros encontrados:', json.length);
 
             this.datos = json
                 .filter(r => r.Ubicación || r.Referencia || r.Descripción)
@@ -70,19 +99,20 @@ class StockLoader {
                     cantidad: parseFloat(r.Cantidad) || 0,
                     traspaso: String(r.Traspaso || '').trim()
                 }))
-                .filter(item => item.referencia || item.descripcion); // Filtrar filas vacías
+                .filter(item => item.referencia || item.descripcion);
 
             // Extraer categorías únicas
             this.categorias = [...new Set(this.datos.map(item => item.clasificacion).filter(c => c))].sort();
 
             this.estaCargando = false;
+            console.log(`[StockLoader] ✅ ${this.datos.length} repuestos cargados`);
             mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
             return this.datos;
 
         } catch (error) {
             this.estaCargando = false;
             console.error('[StockLoader] Error:', error);
-            mostrarMensaje(`⚠️ Error al cargar: ${error.message}`, 'error', 5000);
+            mostrarMensaje(`⚠️ Error: ${error.message}`, 'error', 5000);
             return [];
         }
     }
@@ -90,8 +120,8 @@ class StockLoader {
     /**
      * Busca y filtra los datos según los criterios
      */
-    buscar(termino, categoria = '', criticidad = '') {
-        if (!termino && !categoria && !criticidad) {
+    buscar(termino, categoria = '') {
+        if (!termino && !categoria) {
             this.filtrados = [];
             return [];
         }
@@ -99,12 +129,10 @@ class StockLoader {
         const busqueda = termino.toLowerCase().trim();
         
         this.filtrados = this.datos.filter(item => {
-            // Si no hay término de búsqueda, solo aplicar filtros
+            // Si no hay término de búsqueda, solo aplicar filtro de categoría
             if (!busqueda) {
-                let cumple = true;
-                if (categoria) cumple = cumple && item.clasificacion === categoria;
-                if (criticidad) cumple = cumple && item.criticidad === criticidad;
-                return cumple;
+                if (categoria && item.clasificacion !== categoria) return false;
+                return true;
             }
 
             // Búsqueda en múltiples campos
@@ -113,14 +141,12 @@ class StockLoader {
                 item.refFabricante.toLowerCase().includes(busqueda) ||
                 item.descripcion.toLowerCase().includes(busqueda) ||
                 item.ubicacion.toLowerCase().includes(busqueda) ||
-                item.codigo?.toLowerCase().includes(busqueda) ||
                 item.clasificacion.toLowerCase().includes(busqueda);
 
             if (!cumpleBusqueda) return false;
 
-            // Aplicar filtros de categoría y criticidad
+            // Aplicar filtro de categoría
             if (categoria && item.clasificacion !== categoria) return false;
-            if (criticidad && item.criticidad !== criticidad) return false;
 
             return true;
         });
@@ -134,10 +160,6 @@ class StockLoader {
 
     obtenerCategorias() {
         return this.categorias;
-    }
-
-    obtenerCriticidades() {
-        return this.criticidades;
     }
 }
 
@@ -190,15 +212,6 @@ class StockApp {
                         <option value="">-- Todas --</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <label for="criticityFilter">⚠️ Criticidad</label>
-                    <select id="criticityFilter">
-                        <option value="">-- Todas --</option>
-                        <option value="A">A - Crítica</option>
-                        <option value="B">B - Media</option>
-                        <option value="C">C - Baja</option>
-                    </select>
-                </div>
             </div>
 
             <button class="btn btn-primary" id="searchBtn">
@@ -221,13 +234,12 @@ class StockApp {
                                 <th>Fabricante</th>
                                 <th>Descripción</th>
                                 <th>Clasificación</th>
-                                <th>Criticidad</th>
                                 <th>Cantidad</th>
                             </tr>
                         </thead>
                         <tbody id="stockTableBody">
                             <tr>
-                                <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                                <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
                                     Introduce un criterio de búsqueda y pulsa "Buscar"
                                 </td>
                             </tr>
@@ -240,7 +252,6 @@ class StockApp {
         this.elements = {
             searchInput: this.container.querySelector('#stockSearchInput'),
             categoryFilter: this.container.querySelector('#categoryFilter'),
-            criticityFilter: this.container.querySelector('#criticityFilter'),
             searchBtn: this.container.querySelector('#searchBtn'),
             clearBtn: this.container.querySelector('#clearResultsBtn'),
             resultsContainer: this.container.querySelector('#resultsContainer'),
@@ -271,7 +282,7 @@ class StockApp {
         this._showMessage('📂 Cargando datos de repuestos...', 'info', 0);
         this.datos = await this.loader.cargar();
         if (this.datos.length === 0) {
-            this._showMessage('⚠️ No se pudieron cargar los datos', 'error', 5000);
+            this._showMessage('⚠️ No se pudieron cargar los datos. Verifica que el archivo Almacen.xlsx existe en /data/', 'error', 5000);
         }
     }
 
@@ -291,15 +302,14 @@ class StockApp {
     _buscar() {
         const termino = this.elements.searchInput.value;
         const categoria = this.elements.categoryFilter.value;
-        const criticidad = this.elements.criticityFilter.value;
 
         // Validar que haya algún criterio
-        if (!termino && !categoria && !criticidad) {
-            this._showMessage('⚠️ Introduce un término de búsqueda o selecciona un filtro', 'info', 3000);
+        if (!termino && !categoria) {
+            this._showMessage('⚠️ Introduce un término de búsqueda o selecciona una categoría', 'info', 3000);
             return;
         }
 
-        this.filtrados = this.loader.buscar(termino, categoria, criticidad);
+        this.filtrados = this.loader.buscar(termino, categoria);
         this.busquedaRealizada = true;
 
         this._renderResultados();
@@ -315,7 +325,7 @@ class StockApp {
         if (this.filtrados.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
                         🔍 No se encontraron resultados
                         <br><span style="font-size: 0.8rem;">Prueba con otros términos de búsqueda</span>
                     </td>
@@ -327,7 +337,6 @@ class StockApp {
 
         // Mostrar resultados con la ubicación en primer lugar
         tbody.innerHTML = this.filtrados.map(item => {
-            const badgeClass = this._getCriticidadClass(item.criticidad);
             const cantidad = item.cantidad;
             const stockClass = cantidad > 10 ? 'high' : cantidad > 5 ? 'medium' : 'low';
             const unidad = item.tipoUnidad || 'UD.';
@@ -339,7 +348,6 @@ class StockApp {
                     <td style="font-size: 0.75rem; color: #666;">${item.refFabricante}</td>
                     <td>${item.descripcion.substring(0, 60)}${item.descripcion.length > 60 ? '...' : ''}</td>
                     <td><span style="font-size: 0.75rem; background: #e8e8e8; padding: 2px 8px; border-radius: 12px;">${item.clasificacion}</span></td>
-                    <td><span class="stock-badge ${badgeClass}">${item.criticidad}</span></td>
                     <td><span class="stock-badge ${stockClass}">${cantidad} ${unidad}</span></td>
                 </tr>
             `;
@@ -354,18 +362,8 @@ class StockApp {
         this.busquedaRealizada = false;
         this.elements.searchInput.value = '';
         this.elements.categoryFilter.value = '';
-        this.elements.criticityFilter.value = '';
         this.elements.resultsContainer.style.display = 'none';
         this._showMessage('🔄 Búsqueda limpiada', 'info', 2000);
-    }
-
-    _getCriticidadClass(criticidad) {
-        const map = {
-            'A': 'high',
-            'B': 'medium',
-            'C': 'low'
-        };
-        return map[criticidad] || 'low';
     }
 
     _showMessage(texto, tipo = 'info', duration = 3000) {
