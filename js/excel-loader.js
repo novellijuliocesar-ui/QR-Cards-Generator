@@ -7,110 +7,94 @@ export class ExcelLoader {
         this.datos = [];
         this.filtrados = [];
         this.estaCargando = false;
-        this.rutaBase = this._detectarRutaBase();
+        this.datosDeEjemplo = this._generarDatosEjemplo();
     }
 
-    /**
-     * Detecta automáticamente la ruta base de la aplicación
-     */
-    _detectarRutaBase() {
-        const path = window.location.pathname;
-        if (path.includes('/QR-Cards-Generator/')) {
-            return '/QR-Cards-Generator/';
-        }
-        // Si estamos en la raíz
-        if (path === '/' || path === '/index.html') {
-            return '/';
-        }
-        // Si estamos en una subcarpeta
-        const match = path.match(/^(.+\/)[^\/]+$/);
-        if (match) {
-            return match[1];
-        }
-        return './';
+    _generarDatosEjemplo() {
+        // Datos de ejemplo extraídos del archivo Excel
+        return [
+            { id: '162511', codigo: 'CD_SALLENT', desc: 'CENTRO DE DISTRIBUCIÓN SALLENT - STRADIVARIUS LOGÍSTICA' },
+            { id: '162512', codigo: 'SISTEMAS LOGÍSTICOS', desc: 'SISTEMAS LOGÍSTICOS DE PRODUCCIÓN' },
+            { id: '162513', codigo: 'INFRAESTRUCTURAS', desc: 'SISTEMAS DE INFRAESTRUCTURA' },
+            { id: '162514', codigo: 'TALLER', desc: 'TALLER DE MANTENIMIENTO' },
+            { id: '162515', codigo: 'ALMACEN', desc: 'ALMACÉN DE REPUESTOS' },
+            { id: '182386', codigo: 'OFICINA TÉCNICA', desc: 'TRABAJOS OFICINA TÉCNICA' },
+            { id: '193616', codigo: 'INSTALACION', desc: 'ARRANQUE Y PARADA INSTALACION' },
+            { id: '162516', codigo: 'PAQUETERIA CAJAS', desc: 'TRANSPORTADORES PAQUETERÍA' },
+            { id: '162517', codigo: 'PRENDA COLGADA', desc: 'TRANSPORTADORES PRENDA COLGADA' },
+            { id: '162518', codigo: 'SILOS PAQUETERÍA', desc: 'TRANSELEVADORES PAQUETERÍA' },
+            { id: '162519', codigo: 'SILOS DE PRENDA COLGADA', desc: 'TRANSELEVADORES PRENDA COLGADA' },
+            { id: '162520', codigo: 'MULTISHUTTLE PAQUETERÍA', desc: 'MULTISHUTTLE PAQUETERÍA' },
+            { id: '162521', codigo: 'MULTISHUTTLE PRENDA COLGADA', desc: 'MULTISHUTTLE PRENDA COLGADA' },
+            { id: '162522', codigo: 'SORTER PAQUETERÍA', desc: 'CLASIFICADORES PAQUETERÍA' },
+            { id: '162523', codigo: 'SORTER PRENDA COLGADA', desc: 'CLASIFICADORES PRENDA COLGADA' },
+            { id: '162524', codigo: 'PAQUETERÍA PALETS', desc: 'TRANSPORTADORES PALETS' },
+            { id: '162525', codigo: 'SILO PALETS', desc: 'TRANSELEVADORES PALETS' },
+            { id: '178006', codigo: 'MAQUINAS AUXILIARES PAQUETERÍA', desc: 'MÁQUINAS AUXILIARES PAQUETERÍA' },
+            { id: '178007', codigo: 'MAQUINAS AUXILIARES PRENDA COLGADA', desc: 'MÁQUINAS AUXILIARES PRENDA COLGADA' },
+        ];
     }
 
-    /**
-     * Carga el archivo Excel
-     */
     async cargar(ruta = null) {
         if (this.estaCargando) return;
         this.estaCargando = true;
 
+        // Intentar cargar el Excel
         try {
-            // Si no se especifica ruta, usar la detectada automáticamente
-            if (!ruta) {
-                ruta = `${this.rutaBase}data/DOC-20251215-WA0003.xlsx`;
-            }
+            // Si no se especifica ruta, probar varias opciones
+            const rutas = ruta ? [ruta] : [
+                './data/DOC-20251215-WA0003.xlsx',
+                '/QR-Cards-Generator/data/DOC-20251215-WA0003.xlsx',
+                'data/DOC-20251215-WA0003.xlsx',
+                './DOC-20251215-WA0003.xlsx',
+                '/data/DOC-20251215-WA0003.xlsx'
+            ];
 
-            console.log('[ExcelLoader] Intentando cargar desde:', ruta);
-            mostrarMensaje('📂 Cargando archivo Excel...', 'info', 0);
-            
-            const response = await fetch(ruta);
-            
-            if (!response.ok) {
-                // Si falla, intentar con otra ruta
-                console.warn('[ExcelLoader] Falló la ruta primaria, intentando alternativa...');
-                
-                // Intentar con diferentes variaciones de ruta
-                const rutasAlternativas = [
-                    './data/DOC-20251215-WA0003.xlsx',
-                    './DOC-20251215-WA0003.xlsx',
-                    '../data/DOC-20251215-WA0003.xlsx',
-                    'data/DOC-20251215-WA0003.xlsx',
-                    '/data/DOC-20251215-WA0003.xlsx'
-                ];
-                
-                for (const altRuta of rutasAlternativas) {
-                    try {
-                        console.log('[ExcelLoader] Probando ruta alternativa:', altRuta);
-                        const altResponse = await fetch(altRuta);
-                        if (altResponse.ok) {
-                            const data = await altResponse.arrayBuffer();
-                            this.estaCargando = false;
-                            return this._procesarExcel(data);
+            for (const testRuta of rutas) {
+                try {
+                    console.log('[ExcelLoader] Probando ruta:', testRuta);
+                    const response = await fetch(testRuta);
+                    if (response.ok) {
+                        const data = await response.arrayBuffer();
+                        this.estaCargando = false;
+                        const resultado = this._procesarExcel(data);
+                        if (resultado.length > 0) {
+                            mostrarMensaje(`✅ ${resultado.length} activos cargados desde Excel`, 'success', 3000);
+                            return resultado;
                         }
-                    } catch (e) {
-                        // Continuar con la siguiente ruta
                     }
+                } catch (e) {
+                    console.warn('[ExcelLoader] Falló ruta:', testRuta, e.message);
                 }
-                
-                throw new Error(`No se pudo cargar el archivo Excel en ninguna ruta. Verifica que el archivo existe en la carpeta /data/`);
             }
 
-            const data = await response.arrayBuffer();
+            // Si no se pudo cargar el Excel, usar datos de ejemplo
+            console.log('[ExcelLoader] Usando datos de ejemplo');
+            this.datos = [...this.datosDeEjemplo];
+            this.filtrados = [];
             this.estaCargando = false;
-            return this._procesarExcel(data);
+            mostrarMensaje(`⚠️ Usando datos de ejemplo (${this.datos.length} activos)`, 'info', 4000);
+            return this.datos;
 
         } catch (error) {
             this.estaCargando = false;
-            console.error('[ExcelLoader] Error detallado:', error);
+            console.error('[ExcelLoader] Error:', error);
             
-            // Mostrar mensaje de error más informativo
-            let mensajeError = '⚠️ Error al cargar el archivo Excel. ';
-            if (error.message.includes('404')) {
-                mensajeError += 'El archivo no se encuentra en la ruta esperada.';
-            } else if (error.message.includes('CORS')) {
-                mensajeError += 'Problema de permisos CORS.';
-            } else {
-                mensajeError += error.message;
-            }
-            
-            mostrarMensaje(mensajeError, 'error', 5000);
-            return [];
+            // Usar datos de ejemplo
+            this.datos = [...this.datosDeEjemplo];
+            this.filtrados = [];
+            mostrarMensaje(`⚠️ Usando datos de ejemplo (${this.datos.length} activos)`, 'info', 4000);
+            return this.datos;
         }
     }
 
-    /**
-     * Procesa el archivo Excel y extrae los datos
-     */
     _procesarExcel(data) {
         try {
             const workbook = XLSX.read(data, { type: 'array' });
             const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
             const json = XLSX.utils.sheet_to_json(primeraHoja);
 
-            this.datos = json
+            const datos = json
                 .filter(r => r.ID_ACTIVO_ARBOL && r.CODIGO_IDENTIFICATIVO)
                 .map(r => ({
                     id: limpiarId(r.ID_ACTIVO_ARBOL),
@@ -118,22 +102,19 @@ export class ExcelLoader {
                     desc: r.DESCRIPCION ? String(r.DESCRIPCION).trim() : 'Sin descripción'
                 }));
 
-            this.filtrados = [];
-            
-            console.log(`[ExcelLoader] ✅ ${this.datos.length} activos cargados correctamente`);
-            mostrarMensaje(`✅ ${this.datos.length} activos cargados correctamente`, 'success', 3000);
-            return this.datos;
+            if (datos.length > 0) {
+                this.datos = datos;
+                this.filtrados = [];
+                return datos;
+            }
+            return [];
 
         } catch (error) {
-            console.error('[ExcelLoader] Error al procesar el Excel:', error);
-            mostrarMensaje('⚠️ Error al procesar el archivo Excel: ' + error.message, 'error', 5000);
+            console.error('[ExcelLoader] Error procesando Excel:', error);
             return [];
         }
     }
 
-    /**
-     * Filtra los datos según un término de búsqueda
-     */
     filtrar(termino) {
         if (!termino || termino.trim() === '') {
             this.filtrados = [];
@@ -151,9 +132,6 @@ export class ExcelLoader {
         return this.filtrados;
     }
 
-    /**
-     * Obtiene un elemento por su índice original
-     */
     obtenerPorIndice(indice) {
         if (isNaN(indice) || indice < 0 || indice >= this.datos.length) {
             return null;
@@ -161,9 +139,6 @@ export class ExcelLoader {
         return this.datos[indice];
     }
 
-    /**
-     * Obtiene todos los datos (usando filtro si existe)
-     */
     obtenerDatos() {
         return this.filtrados.length > 0 ? this.filtrados : this.datos;
     }
