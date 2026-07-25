@@ -29,7 +29,7 @@ class ResultsRenderer {
                 const datosValidos = resultados.filter(item => {
                     if (!item || typeof item !== 'object') return false;
                     // Verificar que tenga al menos una propiedad válida
-                    return item.ubicacion || item.referencia || item.descripcion || item.codigo;
+                    return item.ubicacion || item.referencia || item.descripcion;
                 });
 
                 if (datosValidos.length === 0) {
@@ -118,10 +118,10 @@ class ResultsRenderer {
                     
                     x = xInicial;
                     
-                    // Ubicación - usar valor o '—'
+                    // Ubicación
                     ctx.fillStyle = '#333';
                     ctx.textAlign = 'left';
-                    let texto = item.ubicacion || item.Ubicación || '—';
+                    let texto = item.ubicacion || '—';
                     if (texto.length > 10) texto = texto.substring(0, 9) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[0];
@@ -129,7 +129,7 @@ class ResultsRenderer {
                     // Referencia
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = 'bold 10px "Courier New", monospace';
-                    texto = item.referencia || item.Referencia || '—';
+                    texto = item.referencia || '—';
                     if (texto.length > 8) texto = texto.substring(0, 7) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[1];
@@ -138,7 +138,7 @@ class ResultsRenderer {
                     // Fabricante
                     ctx.fillStyle = '#555';
                     ctx.font = '9px "Segoe UI", sans-serif';
-                    texto = item.refFabricante || item['Referencia Fabricante'] || '—';
+                    texto = item.refFabricante || '—';
                     if (texto.length > 10) texto = texto.substring(0, 9) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[2];
@@ -146,7 +146,7 @@ class ResultsRenderer {
                     // Descripción
                     ctx.fillStyle = '#333';
                     ctx.font = '10px "Segoe UI", sans-serif';
-                    texto = item.descripcion || item.Descripción || '—';
+                    texto = item.descripcion || '—';
                     if (texto.length > 18) texto = texto.substring(0, 17) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[3];
@@ -154,13 +154,13 @@ class ResultsRenderer {
                     // Clasificación
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = '9px "Segoe UI", sans-serif';
-                    texto = item.clasificacion || item.Clasificación || '—';
+                    texto = item.clasificacion || '—';
                     if (texto.length > 9) texto = texto.substring(0, 8) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[4];
                     
                     // Cantidad
-                    const cantidad = typeof item.cantidad === 'number' ? item.cantidad : (parseFloat(item.Cantidad) || 0);
+                    const cantidad = typeof item.cantidad === 'number' ? item.cantidad : 0;
                     const badgeColor = cantidad > 10 ? '#28a745' : cantidad > 5 ? '#ffc107' : '#dc3545';
                     ctx.fillStyle = badgeColor;
                     ctx.font = 'bold 10px "Courier New", monospace';
@@ -236,24 +236,6 @@ const DATOS_EJEMPLO = [
         referencia: '21034',
         refFabricante: '306865',
         descripcion: 'MOTORREDUCTOR R67 DT90L4 1,5 KW 1410/27 REV/MIN',
-        clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
-        cantidad: 1
-    },
-    {
-        ubicacion: 'S1/A1/P1/H1/D5/F1',
-        referencia: '45464',
-        refFabricante: 'K47 DT90L4/BMG/H12',
-        descripcion: 'MOTOR CADENA',
-        clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
-        cantidad: 1
-    },
-    {
-        ubicacion: 'S1/A1/P1/H1/D6/F1',
-        referencia: '21194',
-        refFabricante: '305620',
-        descripcion: 'MOTORREDUCTOR (TELESCOPIO) 11-00140',
         clasificacion: 'MOTORES',
         tipoUnidad: 'UD.',
         cantidad: 1
@@ -429,7 +411,7 @@ class StockLoader {
                 refFabricante: normalizarTexto(item.refFabricante || ''),
                 descripcion: normalizarTexto(item.descripcion || ''),
                 clasificacion: normalizarTexto(item.clasificacion || ''),
-                _original: item
+                _original: { ...item } // Copia completa
             }
         }));
     }
@@ -481,7 +463,7 @@ class StockLoader {
             return [];
         }
 
-        // Filtrar y devolver los objetos completos (no solo _original)
+        // Filtrar y devolver los objetos completos
         const resultados = this.datosNormalizados
             .filter(item => {
                 const norm = item._normalizado;
@@ -507,9 +489,8 @@ class StockLoader {
                 return true;
             })
             .map(item => {
-                // Devolver el objeto completo (con todas las propiedades)
-                // Asegurar que todas las propiedades existan
-                const original = item._original || {};
+                // Devolver una copia del objeto original con todas las propiedades
+                const original = item._original || item;
                 return {
                     ubicacion: original.ubicacion || '—',
                     referencia: original.referencia || '—',
@@ -523,6 +504,12 @@ class StockLoader {
 
         this.filtrados = resultados;
         console.log(`[StockLoader] ✅ ${this.filtrados.length} resultados encontrados`);
+        
+        // Log del primer resultado para depuración
+        if (this.filtrados.length > 0) {
+            console.log('[StockLoader] Primer resultado:', this.filtrados[0]);
+        }
+        
         return this.filtrados;
     }
 
@@ -690,7 +677,7 @@ class StockApp {
 
         if (this.filtrados.length === 0) {
             this._showMessage(`🔍 No se encontraron resultados para "${termino || categoria}"`, 'info', 3000);
-            // Mostrar mensaje en la pantalla de resultados también
+            // Mostrar mensaje en la pantalla de resultados
             this.elements.resultsScreen.style.display = 'block';
             this.elements.searchScreen.style.display = 'none';
             this.elements.resultsSubtitle.textContent = `🔍 0 resultados encontrados para "${termino || categoria}"`;
@@ -726,10 +713,7 @@ class StockApp {
 
         try {
             console.log('[StockApp] 🖼️ Generando imagen para', this.filtrados.length, 'resultados');
-            
-            // Verificar que los resultados sean válidos antes de generar la imagen
-            const sampleItem = this.filtrados[0];
-            console.log('[StockApp] Muestra de resultado:', sampleItem);
+            console.log('[StockApp] Primer resultado:', this.filtrados[0]);
             
             this.cachedImage = await ResultsRenderer.generarImagen(
                 this.filtrados, 
@@ -745,6 +729,7 @@ class StockApp {
 
         } catch (error) {
             console.error('[StockApp] ❌ Error generando imagen:', error);
+            console.error('[StockApp] Error detalles:', error.message);
             
             // Mostrar los resultados en texto plano como fallback
             let html = '<div style="padding: 10px; text-align: left; font-size: 12px;">';
