@@ -18,19 +18,15 @@ class StockLoader {
         this.estaCargando = true;
 
         try {
-            // Intentar con diferentes rutas
             const rutas = [
                 ruta,
                 '/QR-Cards-Generator/data/Almacen.xlsx',
                 './data/Almacen.xlsx',
                 'data/Almacen.xlsx',
-                '../data/Almacen.xlsx',
-                './Almacen.xlsx',
-                '/data/Almacen.xlsx'
+                '../data/Almacen.xlsx'
             ];
 
             let dataCargada = null;
-            let rutaExitosa = '';
 
             for (const testRuta of rutas) {
                 try {
@@ -39,74 +35,88 @@ class StockLoader {
                     if (response.ok) {
                         const data = await response.arrayBuffer();
                         dataCargada = data;
-                        rutaExitosa = testRuta;
                         console.log('[StockLoader] ✅ Cargado desde:', testRuta);
                         break;
                     }
                 } catch (e) {
-                    console.warn('[StockLoader] Falló ruta:', testRuta, e.message);
+                    console.warn('[StockLoader] Falló ruta:', testRuta);
                 }
             }
 
             if (!dataCargada) {
-                // Intentar con el nombre del archivo original (con doble punto)
-                const rutasAlternativas = [
-                    './data/DOC-20251215-WA0003..xlsx',
-                    '/QR-Cards-Generator/data/DOC-20251215-WA0003..xlsx'
-                ];
-                
-                for (const testRuta of rutasAlternativas) {
-                    try {
-                        console.log('[StockLoader] Probando ruta alternativa:', testRuta);
-                        const response = await fetch(testRuta);
-                        if (response.ok) {
-                            const data = await response.arrayBuffer();
-                            dataCargada = data;
-                            rutaExitosa = testRuta;
-                            console.log('[StockLoader] ✅ Cargado desde:', testRuta);
-                            break;
-                        }
-                    } catch (e) {
-                        console.warn('[StockLoader] Falló ruta:', testRuta);
-                    }
-                }
-            }
-
-            if (!dataCargada) {
-                throw new Error('No se pudo cargar el archivo Almacen.xlsx. Verifica que el archivo existe en /data/');
+                throw new Error('No se pudo cargar el archivo Almacen.xlsx');
             }
 
             const workbook = XLSX.read(dataCargada, { type: 'array' });
             const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
             const json = XLSX.utils.sheet_to_json(primeraHoja);
 
-            console.log('[StockLoader] Registros encontrados:', json.length);
+            console.log('[StockLoader] Registros encontrados en Excel:', json.length);
+            console.log('[StockLoader] Primer registro:', json[0]);
+            console.log('[StockLoader] Columnas disponibles:', Object.keys(json[0] || {}));
 
+            // PROCESAR REGISTROS - Buscar columnas por nombre exacto o alternativo
             this.datos = json
-                .filter(r => r.Ubicación || r.Referencia || r.Descripción)
-                .map(r => ({
-                    ubicacion: String(r.Ubicación || '').trim(),
-                    habilitado: String(r.Habilit || '').trim(),
-                    comportamiento: String(r.Comportamiento || '').trim(),
-                    maxRef: r['Nº Max. Ref.'] || 0,
-                    ultModif: r['Últ. Modific.'] || '',
-                    referencia: String(r.Referencia || '').trim(),
-                    refFabricante: String(r['Referencia Fabricante'] || '').trim(),
-                    descripcion: String(r.Descripción || '').trim(),
-                    clasificacion: String(r.Clasificación || '').trim(),
-                    criticidad: String(r.Criticidad || '').trim(),
-                    tipoUnidad: String(r['Tipo Unidad'] || '').trim(),
-                    cantidad: parseFloat(r.Cantidad) || 0,
-                    traspaso: String(r.Traspaso || '').trim()
-                }))
-                .filter(item => item.referencia || item.descripcion);
+                .filter(r => {
+                    // Verificar que tenga al menos una columna con datos relevantes
+                    const tieneDatos = r.Ubicación || r.Referencia || r.Descripción || 
+                                      r['Referencia Fabricante'] || r.Clasificación;
+                    return tieneDatos;
+                })
+                .map(r => {
+                    // Extraer valores con nombres de columna flexibles
+                    const ubicacion = r.Ubicación || r['Ubicación'] || '';
+                    const referencia = r.Referencia || r['Referencia'] || '';
+                    const refFabricante = r['Referencia Fabricante'] || r['REFERENCIA FABRICANTE'] || '';
+                    const descripcion = r.Descripción || r['Descripción'] || '';
+                    const clasificacion = r.Clasificación || r['Clasificación'] || '';
+                    const criticidad = r.Criticidad || r['Criticidad'] || '';
+                    const tipoUnidad = r['Tipo Unidad'] || r['TIPO UNIDAD'] || 'UD.';
+                    const cantidad = parseFloat(r.Cantidad || r['Cantidad'] || 0);
+                    const habilitado = r.Habilit || r['Habilit.'] || '';
+                    const comportamiento = r.Comportamiento || r['Comportamiento'] || '';
+                    const maxRef = r['Nº Max. Ref.'] || r['Nº MAX. REF.'] || 0;
+                    const ultModif = r['Últ. Modific.'] || r['ÚLT. MODIFIC.'] || '';
+                    const traspaso = r.Traspaso || r['Traspaso'] || '';
+
+                    return {
+                        ubicacion: String(ubicacion).trim(),
+                        habilitado: String(habilitado).trim(),
+                        comportamiento: String(comportamiento).trim(),
+                        maxRef: parseFloat(maxRef) || 0,
+                        ultModif: String(ultModif).trim(),
+                        referencia: String(referencia).trim(),
+                        refFabricante: String(refFabricante).trim(),
+                        descripcion: String(descripcion).trim(),
+                        clasificacion: String(clasificacion).trim(),
+                        criticidad: String(criticidad).trim(),
+                        tipoUnidad: String(tipoUnidad).trim(),
+                        cantidad: isNaN(cantidad) ? 0 : cantidad,
+                        traspaso: String(traspaso).trim()
+                    };
+                })
+                .filter(item => {
+                    // Filtrar filas vacías o sin datos relevantes
+                    const tieneDatos = item.referencia || 
+                                      item.descripcion || 
+                                      item.refFabricante || 
+                                      item.ubicacion;
+                    return tieneDatos;
+                });
 
             // Extraer categorías únicas
             this.categorias = [...new Set(this.datos.map(item => item.clasificacion).filter(c => c))].sort();
 
             this.estaCargando = false;
-            console.log(`[StockLoader] ✅ ${this.datos.length} repuestos cargados`);
-            mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
+            console.log(`[StockLoader] ✅ ${this.datos.length} repuestos procesados`);
+            console.log(`[StockLoader] Categorías encontradas:`, this.categorias);
+            
+            if (this.datos.length === 0) {
+                mostrarMensaje('⚠️ No se encontraron datos en el archivo. Verifica el formato.', 'error', 5000);
+            } else {
+                mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
+            }
+            
             return this.datos;
 
         } catch (error) {
@@ -262,17 +272,14 @@ class StockApp {
     }
 
     _setupEventListeners() {
-        // Botón de búsqueda
         this.elements.searchBtn.addEventListener('click', () => this._buscar());
 
-        // Enter en el campo de búsqueda
         this.elements.searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this._buscar();
             }
         });
 
-        // Limpiar resultados
         if (this.elements.clearBtn) {
             this.elements.clearBtn.addEventListener('click', () => this._limpiar());
         }
@@ -281,9 +288,6 @@ class StockApp {
     async _cargarDatos() {
         this._showMessage('📂 Cargando datos de repuestos...', 'info', 0);
         this.datos = await this.loader.cargar();
-        if (this.datos.length === 0) {
-            this._showMessage('⚠️ No se pudieron cargar los datos. Verifica que el archivo Almacen.xlsx existe en /data/', 'error', 5000);
-        }
     }
 
     _poblarFiltros() {
@@ -303,7 +307,6 @@ class StockApp {
         const termino = this.elements.searchInput.value;
         const categoria = this.elements.categoryFilter.value;
 
-        // Validar que haya algún criterio
         if (!termino && !categoria) {
             this._showMessage('⚠️ Introduce un término de búsqueda o selecciona una categoría', 'info', 3000);
             return;
@@ -311,7 +314,6 @@ class StockApp {
 
         this.filtrados = this.loader.buscar(termino, categoria);
         this.busquedaRealizada = true;
-
         this._renderResultados();
     }
 
@@ -335,7 +337,6 @@ class StockApp {
             return;
         }
 
-        // Mostrar resultados con la ubicación en primer lugar
         tbody.innerHTML = this.filtrados.map(item => {
             const cantidad = item.cantidad;
             const stockClass = cantidad > 10 ? 'high' : cantidad > 5 ? 'medium' : 'low';
