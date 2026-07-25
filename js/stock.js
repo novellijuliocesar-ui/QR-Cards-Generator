@@ -1,5 +1,190 @@
 import { mostrarMensaje, debounce } from './utils.js';
 
+// ========== DATOS DE EJEMPLO (extraídos de tu archivo Almacen.xlsx) ==========
+
+const DATOS_EJEMPLO = [
+    {
+        ubicacion: 'S1/A1/P1/H1/D1/F1',
+        referencia: '45837',
+        refFabricante: '82014647-00001',
+        descripcion: 'Motor-reductor engranaje. cilindricos R47DRS80M4BE2',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 2
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D2/F1',
+        referencia: '45838',
+        refFabricante: '82013047-00001',
+        descripcion: 'Motor-reductor engranaje. cilindricos R47DRS90M4BE2/Z',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D4/F1',
+        referencia: '21034',
+        refFabricante: '306865',
+        descripcion: 'MOTORREDUCTOR R67 DT90L4 1,5 KW 1410/27 REV/MIN',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D5/F1',
+        referencia: '45464',
+        refFabricante: 'K47 DT90L4/BMG/H12',
+        descripcion: 'MOTOR CADENA',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D6/F1',
+        referencia: '21194',
+        refFabricante: '305620',
+        descripcion: 'MOTORREDUCTOR (TELESCOPIO) 11-00140',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D1/F1',
+        referencia: '45835',
+        refFabricante: '82029847-00001',
+        descripcion: 'Motorreductor:SA47TDRS80S4BGE',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D3/F1',
+        referencia: '45832',
+        refFabricante: '82052347-00001',
+        descripcion: 'Motorreductor:SF47DRS80M4BE2M',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D4/F1',
+        referencia: '45831',
+        refFabricante: '82052647-00001',
+        descripcion: 'Motorreductor:SF47DRS80M4BE2M',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D5/F1',
+        referencia: '16885',
+        refFabricante: '85093638',
+        descripcion: 'MOTORREDUCTOR SA47/T DRN80M4/BE1 M1A 0,75KW 1440/133 RPM',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A10/P1/H1/D1/F1',
+        referencia: '8390',
+        refFabricante: '00197003',
+        descripcion: 'CAUTIVO - RODILLO 50X650mm - ACANALADO',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 49
+    },
+    {
+        ubicacion: 'S1/A10/P2/H1/D1/F1',
+        referencia: '8694',
+        refFabricante: '00038614',
+        descripcion: 'CAUTIVO - RODILLO 50X1.5X650mm SK.11',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 131
+    },
+    {
+        ubicacion: 'S1/A10/P3/H1/D1/F1',
+        referencia: '47140',
+        refFabricante: '00198413',
+        descripcion: 'CAUTIVO - RODILLO CONICO NB=450 COMPLETO',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 70
+    },
+    {
+        ubicacion: 'S1/A11/P1/H1/D1/F1',
+        referencia: '45391',
+        refFabricante: 'MI-DMI AC113I-KAA0AA',
+        descripcion: 'CAUTIVO - MOTO-TAMBOR INTERROLL-MI-DMI AC113I-KAA0AA4E0EHB-409mm',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A11/P4/H1/D1/F1',
+        referencia: '768',
+        refFabricante: '1FK7063-5AH71-1UH0',
+        descripcion: 'SERVOMOTOR SIEMENS',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 2
+    },
+    {
+        ubicacion: 'S1/A12/P1/H1/D1/F1',
+        referencia: '8388',
+        refFabricante: '00197922',
+        descripcion: 'CAUTIVO - RODILLO 50X1.5X450mm - ACANALADO',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 68
+    },
+    {
+        ubicacion: 'S1/A15/P1/H1/D1/F1',
+        referencia: '46663',
+        refFabricante: '101101009',
+        descripcion: 'MUELLES BANDEJAS Sorter 1 y 2',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 126
+    },
+    {
+        ubicacion: 'S1/A15/P1/H1/D3/F1',
+        referencia: '47252',
+        refFabricante: '00001572',
+        descripcion: 'RUEDAS BANDEJAS (DISTRISORT)',
+        clasificacion: 'RODAMIENTO',
+        tipoUnidad: 'UD.',
+        cantidad: 3
+    },
+    {
+        ubicacion: 'S1/A16/P3/H5/D6/F1',
+        referencia: '8762',
+        refFabricante: '00013585',
+        descripcion: 'CIRCLIP GRUPILLA ARANDELA SUJECION 6mm RUEDA TENTE',
+        clasificacion: 'FERRETERIA',
+        tipoUnidad: 'UD.',
+        cantidad: 2308
+    },
+    {
+        ubicacion: 'S1/A20/P1/H3/D1/F1',
+        referencia: '10',
+        refFabricante: '[PLE]-00010469',
+        descripcion: 'MUELLE TENSOR RUEDA INERCIA 0,5X10X34 MM',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 1048
+    },
+    {
+        ubicacion: 'S1/A21/P2/H4/D1/F1',
+        referencia: '22719',
+        refFabricante: 'S330053993Z',
+        descripcion: 'PERNO SOPORTE RODILLO D10x115 K12 SIAT',
+        clasificacion: 'FERRETERIA',
+        tipoUnidad: 'UD.',
+        cantidad: 49
+    }
+];
+
 // ========== GESTOR DE REPUESTOS (STOCK) ==========
 
 class StockLoader {
@@ -8,6 +193,7 @@ class StockLoader {
         this.filtrados = [];
         this.estaCargando = false;
         this.categorias = [];
+        this.usaEjemplo = false;
     }
 
     async cargar(ruta = './data/Almacen.xlsx') {
@@ -41,7 +227,13 @@ class StockLoader {
             }
 
             if (!dataCargada) {
-                throw new Error('No se pudo cargar el archivo Almacen.xlsx');
+                console.warn('[StockLoader] ⚠️ No se pudo cargar el Excel. Usando datos de ejemplo.');
+                this.usaEjemplo = true;
+                this.datos = [...DATOS_EJEMPLO];
+                this.categorias = [...new Set(this.datos.map(item => item.clasificacion))].sort();
+                this.estaCargando = false;
+                mostrarMensaje(`⚠️ Usando ${this.datos.length} datos de ejemplo (Excel no encontrado)`, 'info', 5000);
+                return this.datos;
             }
 
             const workbook = XLSX.read(dataCargada, { type: 'array' });
@@ -50,88 +242,62 @@ class StockLoader {
 
             console.log('[StockLoader] 📊 Registros encontrados:', json.length);
             
-            // MOSTRAR LAS COLUMNAS
+            // Mostrar columnas
             if (json.length > 0) {
                 const columnas = Object.keys(json[0]);
                 console.log('[StockLoader] 📋 Columnas disponibles:', columnas);
-                console.log('[StockLoader] 📄 Primer registro:', JSON.stringify(json[0], null, 2));
-                console.log('[StockLoader] 📄 Segundo registro:', json[1] ? JSON.stringify(json[1], null, 2) : 'No hay segundo registro');
+                console.log('[StockLoader] 📄 Primer registro (muestra):', json[0]);
             }
 
-            // PROCESAR REGISTROS - USAR CUALQUIER NOMBRE DE COLUMNA QUE CONTENGA PALABRAS CLAVE
+            // Procesar datos
             this.datos = [];
 
             for (const row of json) {
-                // Buscar columnas por coincidencia parcial
-                const ubicacion = this._findValue(row, ['Ubicación', 'ubicacion', 'UBICACIÓN', 'Ubicacion']);
-                const referencia = this._findValue(row, ['Referencia', 'referencia', 'REFERENCIA']);
-                const refFabricante = this._findValue(row, ['Referencia Fabricante', 'REFERENCIA FABRICANTE', 'Fabricante', 'fabricante']);
-                const descripcion = this._findValue(row, ['Descripción', 'Descripcion', 'descripción', 'DESCRIPCIÓN']);
-                const clasificacion = this._findValue(row, ['Clasificación', 'Clasificacion', 'clasificación', 'CLASIFICACIÓN']);
-                const criticidad = this._findValue(row, ['Criticidad', 'criticidad', 'CRITICIDAD']);
-                const tipoUnidad = this._findValue(row, ['Tipo Unidad', 'TIPO UNIDAD', 'Tipo', 'tipo']);
-                const cantidad = this._findValue(row, ['Cantidad', 'cantidad', 'CANTIDAD']);
-                const habilitado = this._findValue(row, ['Habilit', 'Habilit.', 'habilitado']);
-                const comportamiento = this._findValue(row, ['Comportamiento', 'comportamiento']);
-                const maxRef = this._findValue(row, ['Nº Max. Ref.', 'Max Ref']);
-                const ultModif = this._findValue(row, ['Últ. Modific.', 'Ult Modific']);
-                const traspaso = this._findValue(row, ['Traspaso', 'traspaso']);
+                const ubicacion = row.Ubicación || row['Ubicación'] || row.Ubicacion || '';
+                const referencia = row.Referencia || row['Referencia'] || '';
+                const refFabricante = row['Referencia Fabricante'] || row.ReferenciaFabricante || '';
+                const descripcion = row.Descripción || row['Descripción'] || row.Descripcion || '';
+                const clasificacion = row.Clasificación || row['Clasificación'] || row.Clasificacion || '';
+                const tipoUnidad = row['Tipo Unidad'] || row.TipoUnidad || 'UD.';
+                const cantidad = parseFloat(row.Cantidad || row['Cantidad'] || 0);
 
-                // Si tiene al menos referencia o descripción, procesarlo
                 if (referencia || descripcion) {
-                    const item = {
-                        ubicacion: String(ubicacion || '').trim(),
-                        habilitado: String(habilitado || '').trim(),
-                        comportamiento: String(comportamiento || '').trim(),
-                        maxRef: parseFloat(maxRef) || 0,
-                        ultModif: String(ultModif || '').trim(),
-                        referencia: String(referencia || '').trim(),
-                        refFabricante: String(refFabricante || '').trim(),
-                        descripcion: String(descripcion || '').trim(),
-                        clasificacion: String(clasificacion || '').trim(),
-                        criticidad: String(criticidad || '').trim(),
-                        tipoUnidad: String(tipoUnidad || 'UD.').trim(),
-                        cantidad: parseFloat(cantidad) || 0,
-                        traspaso: String(traspaso || '').trim()
-                    };
-
-                    this.datos.push(item);
+                    this.datos.push({
+                        ubicacion: String(ubicacion).trim(),
+                        referencia: String(referencia).trim(),
+                        refFabricante: String(refFabricante).trim(),
+                        descripcion: String(descripcion).trim(),
+                        clasificacion: String(clasificacion).trim(),
+                        tipoUnidad: String(tipoUnidad).trim(),
+                        cantidad: isNaN(cantidad) ? 0 : cantidad
+                    });
                 }
             }
 
-            // Extraer categorías únicas
-            this.categorias = [...new Set(this.datos.map(item => item.clasificacion).filter(c => c))].sort();
-
-            this.estaCargando = false;
-            console.log(`[StockLoader] ✅ ${this.datos.length} repuestos procesados`);
-            console.log(`[StockLoader] 🏷️ Categorías:`, this.categorias);
-            
+            // Si no se procesaron datos, usar ejemplo
             if (this.datos.length === 0) {
-                mostrarMensage('⚠️ No se encontraron datos. Revisa la consola.', 'error', 5000);
+                console.warn('[StockLoader] ⚠️ No se procesaron datos del Excel. Usando datos de ejemplo.');
+                this.usaEjemplo = true;
+                this.datos = [...DATOS_EJEMPLO];
+                mostrarMensaje(`⚠️ Usando ${this.datos.length} datos de ejemplo (Excel vacío)`, 'info', 5000);
             } else {
+                console.log(`[StockLoader] ✅ ${this.datos.length} repuestos procesados desde Excel`);
                 mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
             }
-            
+
+            this.categorias = [...new Set(this.datos.map(item => item.clasificacion).filter(c => c))].sort();
+            this.estaCargando = false;
             return this.datos;
 
         } catch (error) {
-            this.estaCargando = false;
             console.error('[StockLoader] ❌ Error:', error);
-            mostrarMensaje(`⚠️ Error: ${error.message}`, 'error', 5000);
-            return [];
+            this.usaEjemplo = true;
+            this.datos = [...DATOS_EJEMPLO];
+            this.categorias = [...new Set(this.datos.map(item => item.clasificacion))].sort();
+            this.estaCargando = false;
+            mostrarMensaje(`⚠️ Usando ${this.datos.length} datos de ejemplo (error: ${error.message})`, 'info', 5000);
+            return this.datos;
         }
-    }
-
-    /**
-     * Busca un valor en el objeto usando múltiples nombres de columna
-     */
-    _findValue(row, posiblesNombres) {
-        for (const nombre of posiblesNombres) {
-            if (row[nombre] !== undefined && row[nombre] !== null && row[nombre] !== '') {
-                return row[nombre];
-            }
-        }
-        return '';
     }
 
     buscar(termino, categoria = '') {
@@ -288,6 +454,9 @@ class StockApp {
     async _cargarDatos() {
         this._showMessage('📂 Cargando datos de repuestos...', 'info', 0);
         this.datos = await this.loader.cargar();
+        if (this.loader.usaEjemplo) {
+            this._showMessage(`⚠️ Usando datos de ejemplo (${this.datos.length} repuestos)`, 'info', 4000);
+        }
     }
 
     _poblarFiltros() {
