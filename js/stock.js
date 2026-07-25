@@ -9,15 +9,13 @@ class StockApp {
         this.datos = [];
         this.categorias = new Map();
         this.currentCategory = '';
-
-        // Elementos DOM
         this.container = document.getElementById('stockPage');
         this.searchInput = null;
         this.categorySelect = null;
         this.tableBody = null;
         this.resultsCount = null;
+        this.messageEl = null;
 
-        // Inicializar
         this.init();
     }
 
@@ -29,9 +27,6 @@ class StockApp {
         this._renderTabla();
     }
 
-    /**
-     * Construye la UI dentro de la página stockPage
-     */
     _buildUI() {
         this.container.innerHTML = `
             <div class="stock-header">
@@ -84,7 +79,6 @@ class StockApp {
             </div>
         `;
 
-        // Capturar referencias
         this.searchInput = document.getElementById('stockSearchInput');
         this.categorySelect = document.getElementById('categorySelect');
         this.tableBody = document.getElementById('stockTableBody');
@@ -93,11 +87,8 @@ class StockApp {
     }
 
     _setupEventListeners() {
-        // Búsqueda con debounce
         const debouncedSearch = debounce(() => this._renderTabla(), 300);
         this.searchInput.addEventListener('input', debouncedSearch);
-
-        // Cambio de categoría
         this.categorySelect.addEventListener('change', () => {
             this.currentCategory = this.categorySelect.value;
             this._renderTabla();
@@ -110,22 +101,16 @@ class StockApp {
         this._showMessage(`✅ ${this.datos.length} activos cargados`, 'success');
     }
 
-    /**
-     * Extrae categorías de la descripción (ejemplo: "CENTRO DE DISTRIBUCIÓN", "SISTEMAS LOGÍSTICOS", etc.)
-     */
     _extraerCategorias() {
         this.categorias = new Map();
         
         this.datos.forEach(item => {
-            // Extraer la primera palabra o código de la descripción como categoría
             let categoria = 'General';
             if (item.desc) {
-                // Buscar patrones comunes
                 const match = item.desc.match(/^([A-ZÁÉÍÓÚÑ\s]+?)(?:\s|$)/);
                 if (match) {
                     categoria = match[1].trim();
                 } else {
-                    // Si no, usar el código
                     categoria = item.codigo.substring(0, 4) || 'General';
                 }
             }
@@ -141,7 +126,6 @@ class StockApp {
         const select = this.categorySelect;
         const categoriasOrdenadas = Array.from(this.categorias.keys()).sort();
         
-        // Mantener la opción "Todas"
         select.innerHTML = '<option value="">-- Todas las categorías --</option>';
         
         categoriasOrdenadas.forEach(cat => {
@@ -156,15 +140,12 @@ class StockApp {
         const searchTerm = this.searchInput.value.toLowerCase().trim();
         const category = this.currentCategory;
         
-        // Filtrar datos
         let filtered = this.datos;
         
-        // Por categoría
         if (category) {
             filtered = this.categorias.get(category) || [];
         }
         
-        // Por búsqueda
         if (searchTerm) {
             filtered = filtered.filter(item => 
                 item.codigo.toLowerCase().includes(searchTerm) ||
@@ -173,7 +154,6 @@ class StockApp {
             );
         }
 
-        // Mostrar tabla
         if (filtered.length === 0) {
             this.tableBody.innerHTML = `
                 <tr>
@@ -202,23 +182,16 @@ class StockApp {
             }).join('');
         }
 
-        // Actualizar contador
         this.resultsCount.textContent = `Total: ${filtered.length} activos`;
     }
 
-    /**
-     * Asigna un estado de stock simulado (para demostración)
-     * En la práctica, esto podría venir de una API
-     */
     _getEstado(item) {
-        // Usar el ID como semilla para un estado pseudo-aleatorio
         const seed = parseInt(item.id) || 0;
         const remainder = seed % 3;
         return remainder === 0 ? 'Alto' : remainder === 1 ? 'Medio' : 'Bajo';
     }
 
     _getCategoria(item) {
-        // Devolver la categoría a la que pertenece
         for (const [cat, items] of this.categorias) {
             if (items.some(i => i.id === item.id && i.codigo === item.codigo)) {
                 return cat;
@@ -243,16 +216,7 @@ class StockApp {
 
 // ========== INICIALIZAR ==========
 document.addEventListener('DOMContentLoaded', () => {
-    // Esperar a que navigation.js haya cargado la página
     setTimeout(() => {
         window.stockApp = new StockApp();
-    }, 100);
-});
-
-// Escuchar cambios de página para limpiar/actualizar
-document.addEventListener('pagechange', (e) => {
-    if (e.detail.pageId === 'stockPage' && window.stockApp) {
-        // Recargar datos si es necesario
-        // window.stockApp._renderTabla();
-    }
+    }, 150);
 });
