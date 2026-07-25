@@ -63,7 +63,7 @@
 
 .filters-section {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 12px;
     margin-bottom: 12px;
 }
@@ -245,11 +245,6 @@
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-    .filters-section {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-    
     .stock-table {
         font-size: 0.7rem;
     }
