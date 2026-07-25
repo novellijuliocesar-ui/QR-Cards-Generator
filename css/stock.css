@@ -1,4 +1,4 @@
-/* ========== PÁGINA DE STOCK ========== */
+/* ========== PÁGINA DE STOCK (REPUESTOS) ========== */
 .stock-page {
     background: #f5f5f5;
     padding: 16px;
@@ -27,16 +27,16 @@
     margin: 5px 0 0;
 }
 
-/* Selector de categoría */
-.category-selector {
+/* ===== BÚSQUEDA Y FILTROS ===== */
+.search-section {
     background: white;
     border-radius: 16px;
     padding: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
 }
 
-.category-selector label {
+.search-section label {
     display: block;
     font-size: 0.85rem;
     font-weight: 600;
@@ -44,30 +44,122 @@
     margin-bottom: 8px;
 }
 
-.category-selector select,
-.category-selector input {
+.search-section input {
     width: 100%;
     padding: 12px;
     border: 2px solid #e0e0e0;
     border-radius: 12px;
     font-size: 1rem;
     font-family: inherit;
-    background: white;
     transition: border-color 0.3s ease;
+    background: white;
 }
 
-.category-selector select:focus,
-.category-selector input:focus {
+.search-section input:focus {
     outline: none;
     border-color: #F2C200;
     box-shadow: 0 0 0 3px rgba(242, 194, 0, 0.2);
 }
 
-/* Tabla de resultados */
+.filters-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.filter-group {
+    background: white;
+    border-radius: 16px;
+    padding: 12px 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.filter-group label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.filter-group select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: white;
+    transition: border-color 0.3s ease;
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: #F2C200;
+    box-shadow: 0 0 0 3px rgba(242, 194, 0, 0.2);
+}
+
+/* ===== BOTÓN DE BÚSQUEDA ===== */
+.btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 12px;
+}
+
+.btn:hover {
+    transform: scale(1.02);
+    opacity: 0.9;
+}
+
+.btn-primary {
+    background: #F2C200;
+    color: #1a1a2e;
+}
+
+.btn-secondary {
+    background: #1a1a2e;
+    color: white;
+}
+
+.btn-small {
+    padding: 8px 16px;
+    width: auto;
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+/* ===== RESULTADOS ===== */
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    background: white;
+    border-radius: 16px;
+    padding: 12px 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.results-header span {
+    font-weight: 600;
+    color: #333;
+}
+
+#resultsContainer {
+    margin-top: 12px;
+}
+
 .stock-table-container {
     background: white;
     border-radius: 16px;
-    padding: 16px;
+    padding: 12px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     overflow-x: auto;
 }
@@ -75,7 +167,7 @@
 .stock-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
 }
 
 .stock-table thead {
@@ -84,14 +176,15 @@
 }
 
 .stock-table th {
-    padding: 12px 10px;
+    padding: 10px 8px;
     text-align: left;
     font-weight: 600;
     white-space: nowrap;
+    font-size: 0.7rem;
 }
 
 .stock-table td {
-    padding: 10px;
+    padding: 8px;
     border-bottom: 1px solid #f0f0f0;
     color: #333;
 }
@@ -100,11 +193,12 @@
     background: #fff8e1;
 }
 
-.stock-table .stock-badge {
+/* ===== BADGES ===== */
+.stock-badge {
     display: inline-block;
-    padding: 4px 12px;
+    padding: 2px 10px;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
 }
 
@@ -123,23 +217,11 @@
     color: #721c24;
 }
 
-/* Mensaje sin resultados */
-.no-results {
-    text-align: center;
-    padding: 40px 20px;
-    color: #666;
-}
-
-.no-results .icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-}
-
-/* ========== MENSAJES (reutilizados) ========== */
+/* ===== MENSAJES ===== */
 .message {
     padding: 12px;
     border-radius: 12px;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     display: none;
 }
 
@@ -161,25 +243,11 @@
     border-left: 4px solid #17a2b8;
 }
 
-/* Responsive */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-    .stock-table-container {
-        padding: 10px;
-    }
-    
-    .stock-table {
-        font-size: 0.75rem;
-    }
-    
-    .stock-table th,
-    .stock-table td {
-        padding: 8px 6px;
-    }
-}
-
-@media (max-width: 480px) {
-    .stock-header h1 {
-        font-size: 1.2rem;
+    .filters-section {
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
     
     .stock-table {
@@ -189,5 +257,29 @@
     .stock-table th,
     .stock-table td {
         padding: 6px 4px;
+    }
+    
+    .stock-table th:last-child,
+    .stock-table td:last-child {
+        min-width: 60px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stock-header h1 {
+        font-size: 1.2rem;
+    }
+    
+    .stock-table {
+        font-size: 0.65rem;
+    }
+    
+    .stock-table th,
+    .stock-table td {
+        padding: 4px 3px;
+    }
+    
+    .filter-group {
+        padding: 8px 12px;
     }
 }
