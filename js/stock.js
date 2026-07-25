@@ -16,31 +16,38 @@ function normalizarTexto(texto) {
 // ========== GENERADOR DE IMAGEN DE RESULTADOS ==========
 
 class ResultsRenderer {
-    /**
-     * Genera una imagen de los resultados de búsqueda
-     */
     static async generarImagen(resultados, termino = '', categoria = '') {
         return new Promise((resolve, reject) => {
             try {
-                // Crear canvas
+                if (!resultados || !Array.isArray(resultados) || resultados.length === 0) {
+                    reject(new Error('No hay resultados para mostrar'));
+                    return;
+                }
+
+                const datosValidos = resultados.filter(item => 
+                    item && typeof item === 'object' && (item.referencia || item.descripcion)
+                );
+
+                if (datosValidos.length === 0) {
+                    reject(new Error('No hay datos válidos para mostrar'));
+                    return;
+                }
+
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Dimensiones
                 const maxWidth = 600;
                 const padding = 20;
                 const rowHeight = 28;
                 const headerHeight = 60;
                 const titleHeight = 60;
                 
-                // Calcular altura total
-                const resultsCount = Math.min(resultados.length, 30); // Máximo 30 resultados
+                const resultsCount = Math.min(datosValidos.length, 30);
                 const totalHeight = titleHeight + headerHeight + (resultsCount * rowHeight) + padding * 2 + 40;
                 
                 canvas.width = maxWidth;
                 canvas.height = totalHeight;
                 
-                // Fondo
                 const gradiente = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 gradiente.addColorStop(0, '#F2C200');
                 gradiente.addColorStop(0.3, '#F5D530');
@@ -48,30 +55,26 @@ class ResultsRenderer {
                 ctx.fillStyle = gradiente;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // Fondo blanco para el contenido
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-                this._dibujarRectRedondeado(ctx, padding, padding, canvas.width - padding * 2, canvas.height - padding * 2, 16);
+                ResultsRenderer._dibujarRectRedondeado(ctx, padding, padding, canvas.width - padding * 2, canvas.height - padding * 2, 16);
                 ctx.fill();
                 
                 let y = padding + 15;
                 
-                // Título
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 18px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText('📦 Resultados de Búsqueda', canvas.width / 2, y + 20);
                 y += 35;
                 
-                // Subtítulo (término de búsqueda y categoría)
                 ctx.font = '12px "Segoe UI", sans-serif';
                 ctx.fillStyle = '#666';
-                let subtitulo = `🔍 ${resultados.length} resultados encontrados`;
+                let subtitulo = `🔍 ${datosValidos.length} resultados encontrados`;
                 if (termino) subtitulo += ` - "${termino}"`;
                 if (categoria) subtitulo += ` - ${categoria}`;
                 ctx.fillText(subtitulo, canvas.width / 2, y + 12);
                 y += 30;
                 
-                // Línea separadora
                 ctx.strokeStyle = '#e0e0e0';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -80,7 +83,6 @@ class ResultsRenderer {
                 ctx.stroke();
                 y += 10;
                 
-                // Cabeceras de tabla
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 11px "Courier New", monospace';
                 ctx.textAlign = 'left';
@@ -98,7 +100,6 @@ class ResultsRenderer {
                 });
                 y += 18;
                 
-                // Línea separadora de cabeceras
                 ctx.strokeStyle = '#1a1a2e';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
@@ -106,23 +107,22 @@ class ResultsRenderer {
                 ctx.lineTo(xInicial + colWidths.reduce((a, b) => a + b, 0), y - 4);
                 ctx.stroke();
                 
-                // Datos
-                const maxDisplay = Math.min(resultados.length, 30);
+                const maxDisplay = Math.min(datosValidos.length, 30);
                 ctx.font = '10px "Segoe UI", sans-serif';
                 
                 for (let i = 0; i < maxDisplay; i++) {
-                    const item = resultados[i];
+                    const item = datosValidos[i];
+                    if (!item) continue;
+                    
                     x = xInicial;
                     
-                    // Ubicación
                     ctx.fillStyle = '#333';
                     ctx.textAlign = 'left';
-                    let texto = item.ubicacion;
+                    let texto = item.ubicacion || '—';
                     if (texto.length > 10) texto = texto.substring(0, 9) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[0];
                     
-                    // Referencia
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = 'bold 10px "Courier New", monospace';
                     texto = item.referencia || '—';
@@ -131,7 +131,6 @@ class ResultsRenderer {
                     x += colWidths[1];
                     ctx.font = '10px "Segoe UI", sans-serif';
                     
-                    // Fabricante
                     ctx.fillStyle = '#555';
                     ctx.font = '9px "Segoe UI", sans-serif';
                     texto = item.refFabricante || '—';
@@ -139,7 +138,6 @@ class ResultsRenderer {
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[2];
                     
-                    // Descripción
                     ctx.fillStyle = '#333';
                     ctx.font = '10px "Segoe UI", sans-serif';
                     texto = item.descripcion || '—';
@@ -147,7 +145,6 @@ class ResultsRenderer {
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[3];
                     
-                    // Clasificación
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = '9px "Segoe UI", sans-serif';
                     texto = item.clasificacion || '—';
@@ -155,8 +152,7 @@ class ResultsRenderer {
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[4];
                     
-                    // Cantidad con badge de color
-                    const cantidad = item.cantidad || 0;
+                    const cantidad = typeof item.cantidad === 'number' ? item.cantidad : 0;
                     const badgeColor = cantidad > 10 ? '#28a745' : cantidad > 5 ? '#ffc107' : '#dc3545';
                     const badgeText = `${cantidad}`;
                     ctx.fillStyle = badgeColor;
@@ -167,15 +163,13 @@ class ResultsRenderer {
                     y += rowHeight;
                 }
                 
-                // Si hay más resultados de los mostrados
-                if (resultados.length > 30) {
+                if (datosValidos.length > 30) {
                     ctx.fillStyle = '#999';
                     ctx.font = '10px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText(`... y ${resultados.length - 30} resultados más`, canvas.width / 2, y + 10);
+                    ctx.fillText(`... y ${datosValidos.length - 30} resultados más`, canvas.width / 2, y + 10);
                 }
                 
-                // Pie de página
                 y += 15;
                 ctx.fillStyle = 'rgba(26, 26, 46, 0.5)';
                 ctx.font = '9px "Segoe UI", sans-serif';
@@ -188,6 +182,7 @@ class ResultsRenderer {
                 
                 resolve(canvas.toDataURL('image/png'));
             } catch (error) {
+                console.error('[ResultsRenderer] Error:', error);
                 reject(error);
             }
         });
@@ -211,9 +206,114 @@ class ResultsRenderer {
 // ========== DATOS DE EJEMPLO ==========
 
 const DATOS_EJEMPLO = [
-    // ... (mantener los mismos datos de ejemplo de la versión anterior)
-    // Para no repetir todo el código, aquí irían los mismos DATOS_EJEMPLO
-    // que en la versión anterior
+    {
+        ubicacion: 'S1/A1/P1/H1/D1/F1',
+        referencia: '45837',
+        refFabricante: '82014647-00001',
+        descripcion: 'Motor-reductor engranaje. cilindricos R47DRS80M4BE2',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 2
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D2/F1',
+        referencia: '45838',
+        refFabricante: '82013047-00001',
+        descripcion: 'Motor-reductor engranaje. cilindricos R47DRS90M4BE2/Z',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D4/F1',
+        referencia: '21034',
+        refFabricante: '306865',
+        descripcion: 'MOTORREDUCTOR R67 DT90L4 1,5 KW 1410/27 REV/MIN',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D5/F1',
+        referencia: '45464',
+        refFabricante: 'K47 DT90L4/BMG/H12',
+        descripcion: 'MOTOR CADENA',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P1/H1/D6/F1',
+        referencia: '21194',
+        refFabricante: '305620',
+        descripcion: 'MOTORREDUCTOR (TELESCOPIO) 11-00140',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D1/F1',
+        referencia: '45835',
+        refFabricante: '82029847-00001',
+        descripcion: 'Motorreductor:SA47TDRS80S4BGE',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D3/F1',
+        referencia: '45832',
+        refFabricante: '82052347-00001',
+        descripcion: 'Motorreductor:SF47DRS80M4BE2M',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D4/F1',
+        referencia: '45831',
+        refFabricante: '82052647-00001',
+        descripcion: 'Motorreductor:SF47DRS80M4BE2M',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A1/P2/H1/D5/F1',
+        referencia: '16885',
+        refFabricante: '85093638',
+        descripcion: 'MOTORREDUCTOR SA47/T DRN80M4/BE1 M1A 0,75KW 1440/133 RPM',
+        clasificacion: 'MOTORES',
+        tipoUnidad: 'UD.',
+        cantidad: 1
+    },
+    {
+        ubicacion: 'S1/A10/P1/H1/D1/F1',
+        referencia: '8390',
+        refFabricante: '00197003',
+        descripcion: 'CAUTIVO - RODILLO 50X650mm - ACANALADO',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 49
+    },
+    {
+        ubicacion: 'S1/A10/P2/H1/D1/F1',
+        referencia: '8694',
+        refFabricante: '00038614',
+        descripcion: 'CAUTIVO - RODILLO 50X1.5X650mm SK.11',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 131
+    },
+    {
+        ubicacion: 'S1/A10/P3/H1/D1/F1',
+        referencia: '47140',
+        refFabricante: '00198413',
+        descripcion: 'CAUTIVO - RODILLO CONICO NB=450 COMPLETO',
+        clasificacion: 'SUMINISTROS INDUSTRIALES',
+        tipoUnidad: 'UD.',
+        cantidad: 70
+    }
 ];
 
 // ========== GESTOR DE REPUESTOS (STOCK) ==========
@@ -332,12 +432,12 @@ class StockLoader {
 
                 if (referencia || descripcion) {
                     this.datos.push({
-                        ubicacion: ubicacion,
-                        referencia: referencia,
-                        refFabricante: refFabricante,
-                        descripcion: descripcion,
-                        clasificacion: clasificacion,
-                        tipoUnidad: tipoUnidad,
+                        ubicacion: ubicacion || '—',
+                        referencia: referencia || '—',
+                        refFabricante: refFabricante || '—',
+                        descripcion: descripcion || '—',
+                        clasificacion: clasificacion || '—',
+                        tipoUnidad: tipoUnidad || 'UD.',
                         cantidad: cantidad
                     });
                 }
@@ -355,7 +455,7 @@ class StockLoader {
                 mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
             }
 
-            this.categorias = [...new Set(this.datos.map(item => item.clasificacion).filter(c => c))].sort();
+            this.categorias = [...new Set(this.datos.map(item => item.clasificacion).filter(c => c && c !== '—'))].sort();
             this.estaCargando = false;
             return this.datos;
 
@@ -501,14 +601,14 @@ class StockApp {
                 </div>
 
                 <div class="action-buttons">
-                    <button class="btn btn-back" id="backSearchBtn">
-                        ◀ Volver a buscar
-                    </button>
                     <button class="btn btn-secondary" id="downloadResultsBtn">
                         📥 Descargar imagen
                     </button>
                     <button class="btn btn-success" id="shareResultsBtn">
                         📤 Compartir
+                    </button>
+                    <button class="btn btn-back" id="backSearchBtn">
+                        ◀ Volver a buscar
                     </button>
                 </div>
             </div>
@@ -583,36 +683,30 @@ class StockApp {
             return;
         }
 
-        // Mostrar resultados en la nueva pantalla
-        this._mostrarResultados();
+        await this._mostrarResultados();
     }
 
     async _mostrarResultados() {
-        // Mostrar pantalla de resultados
         this.elements.searchScreen.style.display = 'none';
         this.elements.resultsScreen.style.display = 'block';
 
-        // Actualizar subtítulo
         this.elements.resultsSubtitle.textContent = 
             `🔍 ${this.filtrados.length} resultados encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}${this.categoriaBusqueda ? ` en ${this.categoriaBusqueda}` : ''}`;
 
-        // Generar la imagen de resultados
-        try {
-            // Mostrar loading en el preview
-            this.elements.resultsContainer.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #999;">
-                    <div class="spinner" style="margin: 0 auto 15px;"></div>
-                    <p>Generando vista de resultados...</p>
-                </div>
-            `;
+        this.elements.resultsContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #999;">
+                <div class="spinner" style="margin: 0 auto 15px;"></div>
+                <p>Generando vista de resultados...</p>
+            </div>
+        `;
 
+        try {
             this.cachedImage = await ResultsRenderer.generarImagen(
                 this.filtrados, 
                 this.terminoBusqueda, 
                 this.categoriaBusqueda
             );
 
-            // Mostrar imagen en el preview
             this.elements.resultsContainer.innerHTML = `
                 <img src="${this.cachedImage}" alt="Resultados de búsqueda" style="width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
             `;
@@ -627,7 +721,7 @@ class StockApp {
                     <p style="font-size: 0.8rem;">${error.message}</p>
                 </div>
             `;
-            this._showMessage('❌ Error al generar la vista', 'error', 3000);
+            this._showMessage('❌ Error al generar la vista: ' + error.message, 'error', 3000);
         }
     }
 
