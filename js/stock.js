@@ -10,9 +10,6 @@ class StockLoader {
         this.categorias = [];
     }
 
-    /**
-     * Carga el archivo Excel de Almacén
-     */
     async cargar(ruta = './data/Almacen.xlsx') {
         if (this.estaCargando) return;
         this.estaCargando = true;
@@ -49,89 +46,68 @@ class StockLoader {
 
             const workbook = XLSX.read(dataCargada, { type: 'array' });
             const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(primeraHoja);
+            const json = XLSX.utils.sheet_to_json(primeraHoja, { defval: '' });
 
-            console.log('[StockLoader] 📊 Registros encontrados en Excel:', json.length);
+            console.log('[StockLoader] 📊 Registros encontrados:', json.length);
             
-            // MOSTRAR LAS COLUMNAS DISPONIBLES
+            // MOSTRAR LAS COLUMNAS
             if (json.length > 0) {
                 const columnas = Object.keys(json[0]);
                 console.log('[StockLoader] 📋 Columnas disponibles:', columnas);
-                console.log('[StockLoader] 📄 Primer registro (muestra):', json[0]);
-                console.log('[StockLoader] 📄 Segundo registro (muestra):', json[1] || 'No hay segundo registro');
+                console.log('[StockLoader] 📄 Primer registro:', JSON.stringify(json[0], null, 2));
+                console.log('[StockLoader] 📄 Segundo registro:', json[1] ? JSON.stringify(json[1], null, 2) : 'No hay segundo registro');
             }
 
-            // PROCESAR REGISTROS - Usar las columnas exactas del archivo
-            this.datos = json
-                .filter(r => {
-                    // Verificar que tenga al menos una columna con datos
-                    const tieneDatos = 
-                        r.Ubicación || r['Ubicación'] || 
-                        r.Referencia || r['Referencia'] || 
-                        r.Descripción || r['Descripción'] ||
-                        r['Referencia Fabricante'] || 
-                        r.Clasificación || r['Clasificación'];
-                    return tieneDatos;
-                })
-                .map((r, index) => {
-                    // Extraer valores - USAR EXACTAMENTE LOS NOMBRES DEL ARCHIVO
-                    const ubicacion = r.Ubicación || r['Ubicación'] || '';
-                    const referencia = r.Referencia || r['Referencia'] || '';
-                    const refFabricante = r['Referencia Fabricante'] || '';
-                    const descripcion = r.Descripción || r['Descripción'] || '';
-                    const clasificacion = r.Clasificación || r['Clasificación'] || '';
-                    const criticidad = r.Criticidad || r['Criticidad'] || '';
-                    const tipoUnidad = r['Tipo Unidad'] || 'UD.';
-                    const cantidad = parseFloat(r.Cantidad || r['Cantidad'] || 0);
-                    const habilitado = r.Habilit || r['Habilit.'] || '';
-                    const comportamiento = r.Comportamiento || r['Comportamiento'] || '';
-                    const maxRef = r['Nº Max. Ref.'] || 0;
-                    const ultModif = r['Últ. Modific.'] || '';
-                    const traspaso = r.Traspaso || r['Traspaso'] || '';
+            // PROCESAR REGISTROS - USAR CUALQUIER NOMBRE DE COLUMNA QUE CONTENGA PALABRAS CLAVE
+            this.datos = [];
 
+            for (const row of json) {
+                // Buscar columnas por coincidencia parcial
+                const ubicacion = this._findValue(row, ['Ubicación', 'ubicacion', 'UBICACIÓN', 'Ubicacion']);
+                const referencia = this._findValue(row, ['Referencia', 'referencia', 'REFERENCIA']);
+                const refFabricante = this._findValue(row, ['Referencia Fabricante', 'REFERENCIA FABRICANTE', 'Fabricante', 'fabricante']);
+                const descripcion = this._findValue(row, ['Descripción', 'Descripcion', 'descripción', 'DESCRIPCIÓN']);
+                const clasificacion = this._findValue(row, ['Clasificación', 'Clasificacion', 'clasificación', 'CLASIFICACIÓN']);
+                const criticidad = this._findValue(row, ['Criticidad', 'criticidad', 'CRITICIDAD']);
+                const tipoUnidad = this._findValue(row, ['Tipo Unidad', 'TIPO UNIDAD', 'Tipo', 'tipo']);
+                const cantidad = this._findValue(row, ['Cantidad', 'cantidad', 'CANTIDAD']);
+                const habilitado = this._findValue(row, ['Habilit', 'Habilit.', 'habilitado']);
+                const comportamiento = this._findValue(row, ['Comportamiento', 'comportamiento']);
+                const maxRef = this._findValue(row, ['Nº Max. Ref.', 'Max Ref']);
+                const ultModif = this._findValue(row, ['Últ. Modific.', 'Ult Modific']);
+                const traspaso = this._findValue(row, ['Traspaso', 'traspaso']);
+
+                // Si tiene al menos referencia o descripción, procesarlo
+                if (referencia || descripcion) {
                     const item = {
-                        ubicacion: String(ubicacion).trim(),
-                        habilitado: String(habilitado).trim(),
-                        comportamiento: String(comportamiento).trim(),
+                        ubicacion: String(ubicacion || '').trim(),
+                        habilitado: String(habilitado || '').trim(),
+                        comportamiento: String(comportamiento || '').trim(),
                         maxRef: parseFloat(maxRef) || 0,
-                        ultModif: String(ultModif).trim(),
-                        referencia: String(referencia).trim(),
-                        refFabricante: String(refFabricante).trim(),
-                        descripcion: String(descripcion).trim(),
-                        clasificacion: String(clasificacion).trim(),
-                        criticidad: String(criticidad).trim(),
-                        tipoUnidad: String(tipoUnidad).trim(),
-                        cantidad: isNaN(cantidad) ? 0 : cantidad,
-                        traspaso: String(traspaso).trim()
+                        ultModif: String(ultModif || '').trim(),
+                        referencia: String(referencia || '').trim(),
+                        refFabricante: String(refFabricante || '').trim(),
+                        descripcion: String(descripcion || '').trim(),
+                        clasificacion: String(clasificacion || '').trim(),
+                        criticidad: String(criticidad || '').trim(),
+                        tipoUnidad: String(tipoUnidad || 'UD.').trim(),
+                        cantidad: parseFloat(cantidad) || 0,
+                        traspaso: String(traspaso || '').trim()
                     };
 
-                    // Mostrar los primeros 5 registros procesados
-                    if (index < 5) {
-                        console.log(`[StockLoader] 🔍 Registro ${index + 1} procesado:`, item);
-                    }
-
-                    return item;
-                })
-                .filter(item => {
-                    // Filtrar filas vacías
-                    const tieneDatos = 
-                        item.referencia || 
-                        item.descripcion || 
-                        item.refFabricante || 
-                        item.ubicacion;
-                    return tieneDatos;
-                });
+                    this.datos.push(item);
+                }
+            }
 
             // Extraer categorías únicas
             this.categorias = [...new Set(this.datos.map(item => item.clasificacion).filter(c => c))].sort();
 
             this.estaCargando = false;
             console.log(`[StockLoader] ✅ ${this.datos.length} repuestos procesados`);
-            console.log(`[StockLoader] 🏷️ Categorías encontradas:`, this.categorias);
+            console.log(`[StockLoader] 🏷️ Categorías:`, this.categorias);
             
             if (this.datos.length === 0) {
-                console.warn('[StockLoader] ⚠️ No se procesó ningún registro. Verifica las columnas del Excel.');
-                mostrarMensaje('⚠️ No se encontraron datos. Revisa la consola para ver las columnas disponibles.', 'error', 5000);
+                mostrarMensage('⚠️ No se encontraron datos. Revisa la consola.', 'error', 5000);
             } else {
                 mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
             }
@@ -147,8 +123,17 @@ class StockLoader {
     }
 
     /**
-     * Busca y filtra los datos según los criterios
+     * Busca un valor en el objeto usando múltiples nombres de columna
      */
+    _findValue(row, posiblesNombres) {
+        for (const nombre of posiblesNombres) {
+            if (row[nombre] !== undefined && row[nombre] !== null && row[nombre] !== '') {
+                return row[nombre];
+            }
+        }
+        return '';
+    }
+
     buscar(termino, categoria = '') {
         if (!termino && !categoria) {
             this.filtrados = [];
