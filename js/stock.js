@@ -51,35 +51,45 @@ class StockLoader {
             const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
             const json = XLSX.utils.sheet_to_json(primeraHoja);
 
-            console.log('[StockLoader] Registros encontrados en Excel:', json.length);
-            console.log('[StockLoader] Primer registro:', json[0]);
-            console.log('[StockLoader] Columnas disponibles:', Object.keys(json[0] || {}));
+            console.log('[StockLoader] 📊 Registros encontrados en Excel:', json.length);
+            
+            // MOSTRAR LAS COLUMNAS DISPONIBLES
+            if (json.length > 0) {
+                const columnas = Object.keys(json[0]);
+                console.log('[StockLoader] 📋 Columnas disponibles:', columnas);
+                console.log('[StockLoader] 📄 Primer registro (muestra):', json[0]);
+                console.log('[StockLoader] 📄 Segundo registro (muestra):', json[1] || 'No hay segundo registro');
+            }
 
-            // PROCESAR REGISTROS - Buscar columnas por nombre exacto o alternativo
+            // PROCESAR REGISTROS - Usar las columnas exactas del archivo
             this.datos = json
                 .filter(r => {
-                    // Verificar que tenga al menos una columna con datos relevantes
-                    const tieneDatos = r.Ubicación || r.Referencia || r.Descripción || 
-                                      r['Referencia Fabricante'] || r.Clasificación;
+                    // Verificar que tenga al menos una columna con datos
+                    const tieneDatos = 
+                        r.Ubicación || r['Ubicación'] || 
+                        r.Referencia || r['Referencia'] || 
+                        r.Descripción || r['Descripción'] ||
+                        r['Referencia Fabricante'] || 
+                        r.Clasificación || r['Clasificación'];
                     return tieneDatos;
                 })
-                .map(r => {
-                    // Extraer valores con nombres de columna flexibles
+                .map((r, index) => {
+                    // Extraer valores - USAR EXACTAMENTE LOS NOMBRES DEL ARCHIVO
                     const ubicacion = r.Ubicación || r['Ubicación'] || '';
                     const referencia = r.Referencia || r['Referencia'] || '';
-                    const refFabricante = r['Referencia Fabricante'] || r['REFERENCIA FABRICANTE'] || '';
+                    const refFabricante = r['Referencia Fabricante'] || '';
                     const descripcion = r.Descripción || r['Descripción'] || '';
                     const clasificacion = r.Clasificación || r['Clasificación'] || '';
                     const criticidad = r.Criticidad || r['Criticidad'] || '';
-                    const tipoUnidad = r['Tipo Unidad'] || r['TIPO UNIDAD'] || 'UD.';
+                    const tipoUnidad = r['Tipo Unidad'] || 'UD.';
                     const cantidad = parseFloat(r.Cantidad || r['Cantidad'] || 0);
                     const habilitado = r.Habilit || r['Habilit.'] || '';
                     const comportamiento = r.Comportamiento || r['Comportamiento'] || '';
-                    const maxRef = r['Nº Max. Ref.'] || r['Nº MAX. REF.'] || 0;
-                    const ultModif = r['Últ. Modific.'] || r['ÚLT. MODIFIC.'] || '';
+                    const maxRef = r['Nº Max. Ref.'] || 0;
+                    const ultModif = r['Últ. Modific.'] || '';
                     const traspaso = r.Traspaso || r['Traspaso'] || '';
 
-                    return {
+                    const item = {
                         ubicacion: String(ubicacion).trim(),
                         habilitado: String(habilitado).trim(),
                         comportamiento: String(comportamiento).trim(),
@@ -94,13 +104,21 @@ class StockLoader {
                         cantidad: isNaN(cantidad) ? 0 : cantidad,
                         traspaso: String(traspaso).trim()
                     };
+
+                    // Mostrar los primeros 5 registros procesados
+                    if (index < 5) {
+                        console.log(`[StockLoader] 🔍 Registro ${index + 1} procesado:`, item);
+                    }
+
+                    return item;
                 })
                 .filter(item => {
-                    // Filtrar filas vacías o sin datos relevantes
-                    const tieneDatos = item.referencia || 
-                                      item.descripcion || 
-                                      item.refFabricante || 
-                                      item.ubicacion;
+                    // Filtrar filas vacías
+                    const tieneDatos = 
+                        item.referencia || 
+                        item.descripcion || 
+                        item.refFabricante || 
+                        item.ubicacion;
                     return tieneDatos;
                 });
 
@@ -109,10 +127,11 @@ class StockLoader {
 
             this.estaCargando = false;
             console.log(`[StockLoader] ✅ ${this.datos.length} repuestos procesados`);
-            console.log(`[StockLoader] Categorías encontradas:`, this.categorias);
+            console.log(`[StockLoader] 🏷️ Categorías encontradas:`, this.categorias);
             
             if (this.datos.length === 0) {
-                mostrarMensaje('⚠️ No se encontraron datos en el archivo. Verifica el formato.', 'error', 5000);
+                console.warn('[StockLoader] ⚠️ No se procesó ningún registro. Verifica las columnas del Excel.');
+                mostrarMensaje('⚠️ No se encontraron datos. Revisa la consola para ver las columnas disponibles.', 'error', 5000);
             } else {
                 mostrarMensaje(`✅ ${this.datos.length} repuestos cargados`, 'success', 3000);
             }
@@ -121,7 +140,7 @@ class StockLoader {
 
         } catch (error) {
             this.estaCargando = false;
-            console.error('[StockLoader] Error:', error);
+            console.error('[StockLoader] ❌ Error:', error);
             mostrarMensaje(`⚠️ Error: ${error.message}`, 'error', 5000);
             return [];
         }
@@ -139,13 +158,11 @@ class StockLoader {
         const busqueda = termino.toLowerCase().trim();
         
         this.filtrados = this.datos.filter(item => {
-            // Si no hay término de búsqueda, solo aplicar filtro de categoría
             if (!busqueda) {
                 if (categoria && item.clasificacion !== categoria) return false;
                 return true;
             }
 
-            // Búsqueda en múltiples campos
             const cumpleBusqueda = 
                 item.referencia.toLowerCase().includes(busqueda) ||
                 item.refFabricante.toLowerCase().includes(busqueda) ||
@@ -154,8 +171,6 @@ class StockLoader {
                 item.clasificacion.toLowerCase().includes(busqueda);
 
             if (!cumpleBusqueda) return false;
-
-            // Aplicar filtro de categoría
             if (categoria && item.clasificacion !== categoria) return false;
 
             return true;
