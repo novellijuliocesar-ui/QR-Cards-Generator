@@ -25,10 +25,12 @@ class ResultsRenderer {
                     return;
                 }
 
-                // Filtrar resultados válidos
-                const datosValidos = resultados.filter(item => 
-                    item && typeof item === 'object' && (item.referencia || item.descripcion)
-                );
+                // Asegurar que cada resultado tenga las propiedades necesarias
+                const datosValidos = resultados.filter(item => {
+                    if (!item || typeof item !== 'object') return false;
+                    // Verificar que tenga al menos una propiedad válida
+                    return item.ubicacion || item.referencia || item.descripcion || item.codigo;
+                });
 
                 if (datosValidos.length === 0) {
                     reject(new Error('No hay datos válidos para mostrar'));
@@ -116,43 +118,49 @@ class ResultsRenderer {
                     
                     x = xInicial;
                     
+                    // Ubicación - usar valor o '—'
                     ctx.fillStyle = '#333';
                     ctx.textAlign = 'left';
-                    let texto = item.ubicacion || '—';
+                    let texto = item.ubicacion || item.Ubicación || '—';
                     if (texto.length > 10) texto = texto.substring(0, 9) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[0];
                     
+                    // Referencia
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = 'bold 10px "Courier New", monospace';
-                    texto = item.referencia || '—';
+                    texto = item.referencia || item.Referencia || '—';
                     if (texto.length > 8) texto = texto.substring(0, 7) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[1];
                     ctx.font = '10px "Segoe UI", sans-serif';
                     
+                    // Fabricante
                     ctx.fillStyle = '#555';
                     ctx.font = '9px "Segoe UI", sans-serif';
-                    texto = item.refFabricante || '—';
+                    texto = item.refFabricante || item['Referencia Fabricante'] || '—';
                     if (texto.length > 10) texto = texto.substring(0, 9) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[2];
                     
+                    // Descripción
                     ctx.fillStyle = '#333';
                     ctx.font = '10px "Segoe UI", sans-serif';
-                    texto = item.descripcion || '—';
+                    texto = item.descripcion || item.Descripción || '—';
                     if (texto.length > 18) texto = texto.substring(0, 17) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[3];
                     
+                    // Clasificación
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = '9px "Segoe UI", sans-serif';
-                    texto = item.clasificacion || '—';
+                    texto = item.clasificacion || item.Clasificación || '—';
                     if (texto.length > 9) texto = texto.substring(0, 8) + '…';
                     ctx.fillText(texto, x, y + 10);
                     x += colWidths[4];
                     
-                    const cantidad = typeof item.cantidad === 'number' ? item.cantidad : 0;
+                    // Cantidad
+                    const cantidad = typeof item.cantidad === 'number' ? item.cantidad : (parseFloat(item.Cantidad) || 0);
                     const badgeColor = cantidad > 10 ? '#28a745' : cantidad > 5 ? '#ffc107' : '#dc3545';
                     ctx.fillStyle = badgeColor;
                     ctx.font = 'bold 10px "Courier New", monospace';
@@ -202,7 +210,7 @@ class ResultsRenderer {
     }
 }
 
-// ========== DATOS DE EJEMPLO (expandidos para pruebas) ==========
+// ========== DATOS DE EJEMPLO (FALLBACK) ==========
 
 const DATOS_EJEMPLO = [
     {
@@ -249,69 +257,6 @@ const DATOS_EJEMPLO = [
         clasificacion: 'MOTORES',
         tipoUnidad: 'UD.',
         cantidad: 1
-    },
-    {
-        ubicacion: 'S1/A1/P2/H1/D1/F1',
-        referencia: '45835',
-        refFabricante: '82029847-00001',
-        descripcion: 'Motorreductor:SA47TDRS80S4BGE',
-        clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
-        cantidad: 1
-    },
-    {
-        ubicacion: 'S1/A1/P2/H1/D3/F1',
-        referencia: '45832',
-        refFabricante: '82052347-00001',
-        descripcion: 'Motorreductor:SF47DRS80M4BE2M',
-        clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
-        cantidad: 1
-    },
-    {
-        ubicacion: 'S1/A1/P2/H1/D4/F1',
-        referencia: '45831',
-        refFabricante: '82052647-00001',
-        descripcion: 'Motorreductor:SF47DRS80M4BE2M',
-        clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
-        cantidad: 1
-    },
-    {
-        ubicacion: 'S1/A1/P2/H1/D5/F1',
-        referencia: '16885',
-        refFabricante: '85093638',
-        descripcion: 'MOTORREDUCTOR SA47/T DRN80M4/BE1 M1A 0,75KW 1440/133 RPM',
-        clasificacion: 'MOTORES',
-        tipoUnidad: 'UD.',
-        cantidad: 1
-    },
-    {
-        ubicacion: 'S1/A10/P1/H1/D1/F1',
-        referencia: '8390',
-        refFabricante: '00197003',
-        descripcion: 'CAUTIVO - RODILLO 50X650mm - ACANALADO',
-        clasificacion: 'SUMINISTROS INDUSTRIALES',
-        tipoUnidad: 'UD.',
-        cantidad: 49
-    },
-    {
-        ubicacion: 'S1/A10/P2/H1/D1/F1',
-        referencia: '8694',
-        refFabricante: '00038614',
-        descripcion: 'CAUTIVO - RODILLO 50X1.5X650mm SK.11',
-        clasificacion: 'SUMINISTROS INDUSTRIALES',
-        tipoUnidad: 'UD.',
-        cantidad: 131
-    },
-    {
-        ubicacion: 'S1/A10/P3/H1/D1/F1',
-        referencia: '47140',
-        refFabricante: '00198413',
-        descripcion: 'CAUTIVO - RODILLO CONICO NB=450 COMPLETO',
-        clasificacion: 'SUMINISTROS INDUSTRIALES',
-        tipoUnidad: 'UD.',
-        cantidad: 70
     }
 ];
 
@@ -536,7 +481,8 @@ class StockLoader {
             return [];
         }
 
-        this.filtrados = this.datosNormalizados
+        // Filtrar y devolver los objetos completos (no solo _original)
+        const resultados = this.datosNormalizados
             .filter(item => {
                 const norm = item._normalizado;
                 if (!norm) return false;
@@ -560,8 +506,22 @@ class StockLoader {
 
                 return true;
             })
-            .map(item => item._original);
+            .map(item => {
+                // Devolver el objeto completo (con todas las propiedades)
+                // Asegurar que todas las propiedades existan
+                const original = item._original || {};
+                return {
+                    ubicacion: original.ubicacion || '—',
+                    referencia: original.referencia || '—',
+                    refFabricante: original.refFabricante || '—',
+                    descripcion: original.descripcion || '—',
+                    clasificacion: original.clasificacion || '—',
+                    tipoUnidad: original.tipoUnidad || 'UD.',
+                    cantidad: typeof original.cantidad === 'number' ? original.cantidad : 0
+                };
+            });
 
+        this.filtrados = resultados;
         console.log(`[StockLoader] ✅ ${this.filtrados.length} resultados encontrados`);
         return this.filtrados;
     }
@@ -766,6 +726,10 @@ class StockApp {
 
         try {
             console.log('[StockApp] 🖼️ Generando imagen para', this.filtrados.length, 'resultados');
+            
+            // Verificar que los resultados sean válidos antes de generar la imagen
+            const sampleItem = this.filtrados[0];
+            console.log('[StockApp] Muestra de resultado:', sampleItem);
             
             this.cachedImage = await ResultsRenderer.generarImagen(
                 this.filtrados, 
