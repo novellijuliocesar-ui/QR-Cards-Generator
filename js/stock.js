@@ -13,203 +13,6 @@ function normalizarTexto(texto) {
         .trim();
 }
 
-// ========== GENERADOR DE IMAGEN DE RESULTADOS ==========
-
-class ResultsRenderer {
-    static async generarImagen(resultados, termino = '', categoria = '') {
-        return new Promise((resolve, reject) => {
-            try {
-                // Validar resultados
-                if (!resultados || !Array.isArray(resultados) || resultados.length === 0) {
-                    reject(new Error('No hay resultados para mostrar'));
-                    return;
-                }
-
-                // Asegurar que cada resultado tenga las propiedades necesarias
-                const datosValidos = resultados.filter(item => {
-                    if (!item || typeof item !== 'object') return false;
-                    // Verificar que tenga al menos una propiedad válida
-                    return item.ubicacion || item.referencia || item.descripcion;
-                });
-
-                if (datosValidos.length === 0) {
-                    reject(new Error('No hay datos válidos para mostrar'));
-                    return;
-                }
-
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                const maxWidth = 600;
-                const padding = 20;
-                const rowHeight = 28;
-                
-                const resultsCount = Math.min(datosValidos.length, 30);
-                const totalHeight = 140 + (resultsCount * rowHeight) + padding * 2 + 40;
-                
-                canvas.width = maxWidth;
-                canvas.height = totalHeight;
-                
-                const gradiente = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                gradiente.addColorStop(0, '#F2C200');
-                gradiente.addColorStop(0.3, '#F5D530');
-                gradiente.addColorStop(1, '#1a1a2e');
-                ctx.fillStyle = gradiente;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-                ResultsRenderer._dibujarRectRedondeado(ctx, padding, padding, canvas.width - padding * 2, canvas.height - padding * 2, 16);
-                ctx.fill();
-                
-                let y = padding + 15;
-                
-                ctx.fillStyle = '#1a1a2e';
-                ctx.font = 'bold 18px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('📦 Resultados de Búsqueda', canvas.width / 2, y + 20);
-                y += 35;
-                
-                ctx.font = '12px "Segoe UI", sans-serif';
-                ctx.fillStyle = '#666';
-                let subtitulo = `🔍 ${datosValidos.length} resultados encontrados`;
-                if (termino) subtitulo += ` - "${termino}"`;
-                if (categoria) subtitulo += ` - ${categoria}`;
-                ctx.fillText(subtitulo, canvas.width / 2, y + 12);
-                y += 30;
-                
-                ctx.strokeStyle = '#e0e0e0';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(padding + 15, y);
-                ctx.lineTo(canvas.width - padding - 15, y);
-                ctx.stroke();
-                y += 10;
-                
-                ctx.fillStyle = '#1a1a2e';
-                ctx.font = 'bold 11px "Courier New", monospace';
-                ctx.textAlign = 'left';
-                
-                const colores = ['#1a1a2e', '#F2C200', '#1a1a2e', '#1a1a2e', '#1a1a2e', '#1a1a2e'];
-                const textos = ['📍 Ubicación', 'Ref.', 'Fabricante', 'Descripción', 'Clasif.', 'Cant.'];
-                const xInicial = padding + 15;
-                const colWidths = [90, 70, 70, 160, 70, 55];
-                
-                let x = xInicial;
-                textos.forEach((text, i) => {
-                    ctx.fillStyle = colores[i];
-                    ctx.fillText(text, x, y + 12);
-                    x += colWidths[i];
-                });
-                y += 18;
-                
-                ctx.strokeStyle = '#1a1a2e';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(xInicial, y - 4);
-                ctx.lineTo(xInicial + colWidths.reduce((a, b) => a + b, 0), y - 4);
-                ctx.stroke();
-                
-                const maxDisplay = Math.min(datosValidos.length, 30);
-                ctx.font = '10px "Segoe UI", sans-serif';
-                
-                for (let i = 0; i < maxDisplay; i++) {
-                    const item = datosValidos[i];
-                    if (!item) continue;
-                    
-                    x = xInicial;
-                    
-                    // Ubicación
-                    ctx.fillStyle = '#333';
-                    ctx.textAlign = 'left';
-                    let texto = item.ubicacion || '—';
-                    if (texto.length > 10) texto = texto.substring(0, 9) + '…';
-                    ctx.fillText(texto, x, y + 10);
-                    x += colWidths[0];
-                    
-                    // Referencia
-                    ctx.fillStyle = '#1a1a2e';
-                    ctx.font = 'bold 10px "Courier New", monospace';
-                    texto = item.referencia || '—';
-                    if (texto.length > 8) texto = texto.substring(0, 7) + '…';
-                    ctx.fillText(texto, x, y + 10);
-                    x += colWidths[1];
-                    ctx.font = '10px "Segoe UI", sans-serif';
-                    
-                    // Fabricante
-                    ctx.fillStyle = '#555';
-                    ctx.font = '9px "Segoe UI", sans-serif';
-                    texto = item.refFabricante || '—';
-                    if (texto.length > 10) texto = texto.substring(0, 9) + '…';
-                    ctx.fillText(texto, x, y + 10);
-                    x += colWidths[2];
-                    
-                    // Descripción
-                    ctx.fillStyle = '#333';
-                    ctx.font = '10px "Segoe UI", sans-serif';
-                    texto = item.descripcion || '—';
-                    if (texto.length > 18) texto = texto.substring(0, 17) + '…';
-                    ctx.fillText(texto, x, y + 10);
-                    x += colWidths[3];
-                    
-                    // Clasificación
-                    ctx.fillStyle = '#1a1a2e';
-                    ctx.font = '9px "Segoe UI", sans-serif';
-                    texto = item.clasificacion || '—';
-                    if (texto.length > 9) texto = texto.substring(0, 8) + '…';
-                    ctx.fillText(texto, x, y + 10);
-                    x += colWidths[4];
-                    
-                    // Cantidad
-                    const cantidad = typeof item.cantidad === 'number' ? item.cantidad : 0;
-                    const badgeColor = cantidad > 10 ? '#28a745' : cantidad > 5 ? '#ffc107' : '#dc3545';
-                    ctx.fillStyle = badgeColor;
-                    ctx.font = 'bold 10px "Courier New", monospace';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${cantidad}`, x + colWidths[5] / 2, y + 10);
-                    
-                    y += rowHeight;
-                }
-                
-                if (datosValidos.length > 30) {
-                    ctx.fillStyle = '#999';
-                    ctx.font = '10px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`... y ${datosValidos.length - 30} resultados más`, canvas.width / 2, y + 10);
-                }
-                
-                y += 15;
-                ctx.fillStyle = 'rgba(26, 26, 46, 0.5)';
-                ctx.font = '9px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                const fecha = new Date().toLocaleDateString('es-ES', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                });
-                ctx.fillText(`Generado: ${fecha} · QR-Cards-Generator`, canvas.width / 2, y + 8);
-                
-                resolve(canvas.toDataURL('image/png'));
-            } catch (error) {
-                console.error('[ResultsRenderer] Error:', error);
-                reject(error);
-            }
-        });
-    }
-    
-    static _dibujarRectRedondeado(ctx, x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + w - r, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-        ctx.lineTo(x + w, y + h - r);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-        ctx.lineTo(x + r, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
-    }
-}
-
 // ========== DATOS DE EJEMPLO (FALLBACK) ==========
 
 const DATOS_EJEMPLO = [
@@ -411,29 +214,23 @@ class StockLoader {
                 refFabricante: normalizarTexto(item.refFabricante || ''),
                 descripcion: normalizarTexto(item.descripcion || ''),
                 clasificacion: normalizarTexto(item.clasificacion || ''),
-                _original: { ...item } // Copia completa
+                _original: { ...item }
             }
         }));
     }
 
     buscar(termino, categoria = '') {
-        // Validar que haya datos
         if (!this.datos || this.datos.length === 0) {
-            console.warn('[StockLoader] No hay datos cargados');
             this.filtrados = [];
             return [];
         }
 
-        // Validar que haya datos normalizados
         if (!this.datosNormalizados || this.datosNormalizados.length === 0) {
-            console.warn('[StockLoader] No hay datos normalizados');
             this.filtrados = [];
             return [];
         }
 
-        // Si no hay término ni categoría, devolver vacío
         if (!termino && !categoria) {
-            console.log('[StockLoader] Sin criterios de búsqueda');
             this.filtrados = [];
             return [];
         }
@@ -441,35 +238,21 @@ class StockLoader {
         const busquedaNormalizada = normalizarTexto(termino);
         const categoriaNormalizada = normalizarTexto(categoria);
 
-        console.log('[StockLoader] Buscando:', { 
-            termino, 
-            busquedaNormalizada: busquedaNormalizada || '(vacío)', 
-            categoria, 
-            categoriaNormalizada: categoriaNormalizada || '(vacío)',
-            totalDatos: this.datosNormalizados.length 
-        });
-
-        // Si hay término de búsqueda pero está vacío después de normalizar
         if (termino && !busquedaNormalizada) {
-            console.log('[StockLoader] El término se normalizó a vacío');
             this.filtrados = [];
             return [];
         }
 
-        // Si solo hay categoría y está vacía
         if (categoria && !categoriaNormalizada) {
-            console.log('[StockLoader] La categoría se normalizó a vacío');
             this.filtrados = [];
             return [];
         }
 
-        // Filtrar y devolver los objetos completos
         const resultados = this.datosNormalizados
             .filter(item => {
                 const norm = item._normalizado;
                 if (!norm) return false;
 
-                // Si hay término de búsqueda, buscar en todos los campos
                 if (busquedaNormalizada) {
                     const cumpleBusqueda = 
                         (norm.referencia || '').includes(busquedaNormalizada) ||
@@ -481,7 +264,6 @@ class StockLoader {
                     if (!cumpleBusqueda) return false;
                 }
 
-                // Si hay categoría, filtrar
                 if (categoriaNormalizada) {
                     if ((norm.clasificacion || '') !== categoriaNormalizada) return false;
                 }
@@ -489,7 +271,6 @@ class StockLoader {
                 return true;
             })
             .map(item => {
-                // Devolver una copia del objeto original con todas las propiedades
                 const original = item._original || item;
                 return {
                     ubicacion: original.ubicacion || '—',
@@ -504,12 +285,6 @@ class StockLoader {
 
         this.filtrados = resultados;
         console.log(`[StockLoader] ✅ ${this.filtrados.length} resultados encontrados`);
-        
-        // Log del primer resultado para depuración
-        if (this.filtrados.length > 0) {
-            console.log('[StockLoader] Primer resultado:', this.filtrados[0]);
-        }
-        
         return this.filtrados;
     }
 
@@ -531,7 +306,8 @@ class StockApp {
         this.filtrados = [];
         this.terminoBusqueda = '';
         this.categoriaBusqueda = '';
-        this.cachedImage = null;
+        this.paginaActual = 1;
+        this.resultadosPorPagina = 25;
 
         this.container = document.getElementById('stockPage');
         this.elements = {};
@@ -584,25 +360,53 @@ class StockApp {
 
             <!-- ====== PANTALLA DE RESULTADOS ====== -->
             <div id="resultsScreen" class="results-screen" style="display: none;">
-                <div class="stock-header">
-                    <h1>📊 Resultados de Búsqueda</h1>
-                    <p id="resultsSubtitle">0 resultados encontrados</p>
+                <div class="stock-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
+                        <p id="resultsSubtitle" style="margin: 4px 0 0; font-size: 0.8rem;">0 resultados encontrados</p>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-back btn-small" id="backSearchBtn" style="margin: 0; padding: 6px 14px; font-size: 0.75rem;">
+                            ◀ Volver
+                        </button>
+                        <button class="btn btn-secondary btn-small" id="exportCsvBtn" style="margin: 0; padding: 6px 14px; font-size: 0.75rem;">
+                            📥 CSV
+                        </button>
+                    </div>
                 </div>
 
-                <div class="results-preview" id="resultsPreview">
-                    <div id="resultsContainer" style="width: 100%;"></div>
-                </div>
-
-                <div class="action-buttons">
-                    <button class="btn btn-secondary" id="downloadResultsBtn">
-                        📥 Descargar imagen
-                    </button>
-                    <button class="btn btn-success" id="shareResultsBtn">
-                        📤 Compartir
-                    </button>
-                    <button class="btn btn-back" id="backSearchBtn">
-                        ◀ Volver a buscar
-                    </button>
+                <div class="stock-table-container" id="tableContainer">
+                    <div id="resultsTableWrapper" style="overflow-x: auto;">
+                        <table class="stock-table" id="resultsTable">
+                            <thead>
+                                <tr>
+                                    <th data-sort="ubicacion" style="cursor: pointer;">📍 Ubicación</th>
+                                    <th data-sort="referencia" style="cursor: pointer;">Referencia</th>
+                                    <th data-sort="refFabricante" style="cursor: pointer;">Fabricante</th>
+                                    <th data-sort="descripcion" style="cursor: pointer;">Descripción</th>
+                                    <th data-sort="clasificacion" style="cursor: pointer;">Clasificación</th>
+                                    <th data-sort="cantidad" style="cursor: pointer;">Cantidad</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                                        No hay resultados para mostrar
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    <div id="paginationControls" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0 0; flex-wrap: wrap; gap: 8px;">
+                        <span id="paginationInfo" style="font-size: 0.8rem; color: #666;">Mostrando 0 de 0</span>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-small btn-back" id="prevPageBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">◀ Anterior</button>
+                            <span id="pageIndicator" style="font-size: 0.8rem; color: #333; display: flex; align-items: center; padding: 0 8px;">Página 1</span>
+                            <button class="btn btn-small btn-back" id="nextPageBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">Siguiente ▶</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -611,14 +415,17 @@ class StockApp {
             searchScreen: this.container.querySelector('#searchScreen'),
             resultsScreen: this.container.querySelector('#resultsScreen'),
             resultsSubtitle: this.container.querySelector('#resultsSubtitle'),
-            resultsPreview: this.container.querySelector('#resultsPreview'),
-            resultsContainer: this.container.querySelector('#resultsContainer'),
+            resultsTableBody: this.container.querySelector('#resultsTableBody'),
+            resultsTable: this.container.querySelector('#resultsTable'),
             searchInput: this.container.querySelector('#stockSearchInput'),
             categoryFilter: this.container.querySelector('#categoryFilter'),
             searchBtn: this.container.querySelector('#searchBtn'),
             backBtn: this.container.querySelector('#backSearchBtn'),
-            downloadBtn: this.container.querySelector('#downloadResultsBtn'),
-            shareBtn: this.container.querySelector('#shareResultsBtn'),
+            exportCsvBtn: this.container.querySelector('#exportCsvBtn'),
+            prevPageBtn: this.container.querySelector('#prevPageBtn'),
+            nextPageBtn: this.container.querySelector('#nextPageBtn'),
+            pageIndicator: this.container.querySelector('#pageIndicator'),
+            paginationInfo: this.container.querySelector('#paginationInfo'),
         };
         this.messageEl = this.container.querySelector('#stockMessage');
     }
@@ -631,8 +438,17 @@ class StockApp {
             }
         });
         this.elements.backBtn.addEventListener('click', () => this._volver());
-        this.elements.downloadBtn.addEventListener('click', () => this._descargar());
-        this.elements.shareBtn.addEventListener('click', () => this._compartir());
+        this.elements.exportCsvBtn.addEventListener('click', () => this._exportarCSV());
+        this.elements.prevPageBtn.addEventListener('click', () => this._cambiarPagina(-1));
+        this.elements.nextPageBtn.addEventListener('click', () => this._cambiarPagina(1));
+
+        // Ordenación de columnas
+        this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.sort;
+                this._ordenarPor(key);
+            });
+        });
     }
 
     async _cargarDatos() {
@@ -660,8 +476,6 @@ class StockApp {
         const termino = this.elements.searchInput.value.trim();
         const categoria = this.elements.categoryFilter.value;
 
-        console.log('[StockApp] 🔍 Buscando:', { termino, categoria });
-
         if (!termino && !categoria) {
             this._showMessage('⚠️ Introduce un término de búsqueda o selecciona una categoría', 'info', 3000);
             return;
@@ -671,23 +485,25 @@ class StockApp {
         this.categoriaBusqueda = categoria;
 
         this.filtrados = this.loader.buscar(termino, categoria);
-        this.cachedImage = null;
-
-        console.log('[StockApp] 📊 Resultados:', this.filtrados.length);
+        this.paginaActual = 1;
 
         if (this.filtrados.length === 0) {
             this._showMessage(`🔍 No se encontraron resultados para "${termino || categoria}"`, 'info', 3000);
-            // Mostrar mensaje en la pantalla de resultados
             this.elements.resultsScreen.style.display = 'block';
             this.elements.searchScreen.style.display = 'none';
             this.elements.resultsSubtitle.textContent = `🔍 0 resultados encontrados para "${termino || categoria}"`;
-            this.elements.resultsContainer.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #999;">
-                    <p style="font-size: 48px; margin: 0;">🔍</p>
-                    <p>No se encontraron resultados</p>
-                    <p style="font-size: 0.8rem;">Prueba con otros términos de búsqueda</p>
-                </div>
+            this.elements.resultsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                        🔍 No se encontraron resultados
+                        <br><span style="font-size: 0.8rem;">Prueba con otros términos de búsqueda</span>
+                    </td>
+                </tr>
             `;
+            this.elements.paginationInfo.textContent = 'Mostrando 0 de 0';
+            this.elements.pageIndicator.textContent = 'Página 1';
+            this.elements.prevPageBtn.style.display = 'none';
+            this.elements.nextPageBtn.style.display = 'none';
             return;
         }
 
@@ -695,121 +511,159 @@ class StockApp {
     }
 
     async _mostrarResultados() {
-        // Mostrar pantalla de resultados
         this.elements.searchScreen.style.display = 'none';
         this.elements.resultsScreen.style.display = 'block';
 
-        // Actualizar subtítulo
         this.elements.resultsSubtitle.textContent = 
             `🔍 ${this.filtrados.length} resultados encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}${this.categoriaBusqueda ? ` en ${this.categoriaBusqueda}` : ''}`;
 
-        // Mostrar loading
-        this.elements.resultsContainer.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #999;">
-                <div class="spinner" style="margin: 0 auto 15px;"></div>
-                <p>Generando vista de resultados...</p>
-            </div>
-        `;
+        this._renderPagina();
+        this._showMessage(`✅ ${this.filtrados.length} resultados encontrados`, 'success', 2000);
+    }
+
+    _renderPagina() {
+        const total = this.filtrados.length;
+        const porPagina = this.resultadosPorPagina;
+        const totalPaginas = Math.ceil(total / porPagina);
+        
+        if (this.paginaActual > totalPaginas) {
+            this.paginaActual = totalPaginas || 1;
+        }
+        
+        const inicio = (this.paginaActual - 1) * porPagina;
+        const fin = Math.min(inicio + porPagina, total);
+        const paginaResultados = this.filtrados.slice(inicio, fin);
+
+        const tbody = this.elements.resultsTableBody;
+        
+        if (paginaResultados.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                        No hay resultados en esta página
+                    </td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = paginaResultados.map(item => {
+                const cantidad = item.cantidad || 0;
+                const stockClass = cantidad > 10 ? 'high' : cantidad > 5 ? 'medium' : 'low';
+                const unidad = item.tipoUnidad || 'UD.';
+                
+                return `
+                    <tr>
+                        <td><code style="font-size: 0.7rem; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${item.ubicacion}</code></td>
+                        <td><strong>${item.referencia}</strong></td>
+                        <td style="font-size: 0.75rem; color: #666;">${item.refFabricante}</td>
+                        <td>${item.descripcion}</td>
+                        <td><span style="font-size: 0.75rem; background: #e8e8e8; padding: 2px 8px; border-radius: 12px;">${item.clasificacion}</span></td>
+                        <td><span class="stock-badge ${stockClass}">${cantidad} ${unidad}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Actualizar paginación
+        this.elements.paginationInfo.textContent = `Mostrando ${inicio + 1}-${fin} de ${total} resultados`;
+        this.elements.pageIndicator.textContent = `Página ${this.paginaActual} de ${totalPaginas || 1}`;
+        
+        this.elements.prevPageBtn.style.display = this.paginaActual > 1 ? 'inline-block' : 'none';
+        this.elements.nextPageBtn.style.display = this.paginaActual < totalPaginas ? 'inline-block' : 'none';
+    }
+
+    _cambiarPagina(delta) {
+        const total = this.filtrados.length;
+        const totalPaginas = Math.ceil(total / this.resultadosPorPagina);
+        const nuevaPagina = this.paginaActual + delta;
+        
+        if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+        
+        this.paginaActual = nuevaPagina;
+        this._renderPagina();
+        
+        // Scroll al inicio de la tabla
+        const tableContainer = this.container.querySelector('#tableContainer');
+        if (tableContainer) {
+            tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    _ordenarPor(key) {
+        if (this.filtrados.length === 0) return;
+        
+        // Alternar orden
+        if (this._ultimaOrden === key) {
+            this._ordenAscendente = !this._ordenAscendente;
+        } else {
+            this._ultimaOrden = key;
+            this._ordenAscendente = true;
+        }
+        
+        const asc = this._ordenAscendente;
+        
+        this.filtrados.sort((a, b) => {
+            let valA = a[key] || '';
+            let valB = b[key] || '';
+            
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+            
+            if (valA < valB) return asc ? -1 : 1;
+            if (valA > valB) return asc ? 1 : -1;
+            return 0;
+        });
+        
+        this.paginaActual = 1;
+        this._renderPagina();
+        
+        // Actualizar indicadores de orden
+        this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
+            th.style.color = th.dataset.sort === key ? '#F2C200' : '';
+        });
+    }
+
+    _exportarCSV() {
+        if (this.filtrados.length === 0) {
+            this._showMessage('⚠️ No hay datos para exportar', 'info', 3000);
+            return;
+        }
 
         try {
-            console.log('[StockApp] 🖼️ Generando imagen para', this.filtrados.length, 'resultados');
-            console.log('[StockApp] Primer resultado:', this.filtrados[0]);
+            // Crear contenido CSV
+            const cabeceras = ['Ubicación', 'Referencia', 'Fabricante', 'Descripción', 'Clasificación', 'Cantidad', 'Unidad'];
+            const filas = this.filtrados.map(item => [
+                item.ubicacion,
+                item.referencia,
+                item.refFabricante,
+                `"${item.descripcion.replace(/"/g, '""')}"`,
+                item.clasificacion,
+                item.cantidad || 0,
+                item.tipoUnidad || 'UD.'
+            ]);
             
-            this.cachedImage = await ResultsRenderer.generarImagen(
-                this.filtrados, 
-                this.terminoBusqueda, 
-                this.categoriaBusqueda
-            );
-
-            this.elements.resultsContainer.innerHTML = `
-                <img src="${this.cachedImage}" alt="Resultados de búsqueda" style="width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-            `;
-
-            this._showMessage(`✅ ${this.filtrados.length} resultados encontrados`, 'success', 2000);
-
+            const csvContent = [cabeceras.join(','), ...filas.map(f => f.join(','))].join('\n');
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const nombre = `stock-${new Date().toISOString().slice(0, 10)}`;
+            link.href = URL.createObjectURL(blob);
+            link.download = `${nombre}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            
+            this._showMessage('📥 CSV exportado correctamente', 'success', 2000);
         } catch (error) {
-            console.error('[StockApp] ❌ Error generando imagen:', error);
-            console.error('[StockApp] Error detalles:', error.message);
-            
-            // Mostrar los resultados en texto plano como fallback
-            let html = '<div style="padding: 10px; text-align: left; font-size: 12px;">';
-            html += `<p style="font-weight: bold; text-align: center;">${this.filtrados.length} resultados encontrados</p>`;
-            html += '<ul style="list-style: none; padding: 0;">';
-            const maxDisplay = Math.min(this.filtrados.length, 20);
-            for (let i = 0; i < maxDisplay; i++) {
-                const item = this.filtrados[i];
-                html += `<li style="padding: 4px 0; border-bottom: 1px solid #eee;">
-                    <strong>${item.ubicacion || '—'}</strong> - 
-                    ${item.referencia || '—'} - 
-                    ${item.descripcion ? item.descripcion.substring(0, 40) : '—'}
-                    <span style="float: right; font-weight: bold; color: ${item.cantidad > 10 ? '#28a745' : item.cantidad > 5 ? '#ffc107' : '#dc3545'};">${item.cantidad || 0}</span>
-                </li>`;
-            }
-            if (this.filtrados.length > 20) {
-                html += `<li style="padding: 4px 0; text-align: center; color: #999;">... y ${this.filtrados.length - 20} más</li>`;
-            }
-            html += '</ul></div>';
-            
-            this.elements.resultsContainer.innerHTML = html;
-            this._showMessage('⚠️ Vista simplificada (error al generar imagen)', 'info', 3000);
+            console.error('[StockApp] Error exportando CSV:', error);
+            this._showMessage('❌ Error al exportar CSV', 'error', 3000);
         }
     }
 
     _volver() {
         this.elements.resultsScreen.style.display = 'none';
         this.elements.searchScreen.style.display = 'block';
-        this.cachedImage = null;
-        this.elements.resultsContainer.innerHTML = '';
-    }
-
-    async _descargar() {
-        if (!this.cachedImage) {
-            this._showMessage('❌ Generando imagen...', 'info', 2000);
-            return;
-        }
-
-        try {
-            const link = document.createElement('a');
-            const nombre = `resultados-stock-${new Date().toISOString().slice(0, 10)}`;
-            link.download = `${nombre}.png`;
-            link.href = this.cachedImage;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            this._showMessage('📥 Imagen descargada', 'success', 2000);
-        } catch (error) {
-            console.error('[StockApp] Error descargando:', error);
-            this._showMessage('❌ Error al descargar', 'error', 3000);
-        }
-    }
-
-    async _compartir() {
-        if (!this.cachedImage) {
-            this._showMessage('❌ Generando imagen...', 'info', 2000);
-            return;
-        }
-
-        try {
-            const blob = await (await fetch(this.cachedImage)).blob();
-            const file = new File([blob], 'resultados-stock.png', { type: 'image/png' });
-
-            if (navigator.share && navigator.canShare?.({ files: [file] })) {
-                await navigator.share({
-                    title: 'Resultados de stock',
-                    text: `📦 ${this.filtrados.length} repuestos encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}`,
-                    files: [file]
-                });
-                this._showMessage('📤 Compartido correctamente', 'success', 2000);
-            } else {
-                this._showMessage('📱 Compartir no soportado, se descargará', 'info', 2000);
-                this._descargar();
-            }
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error('[StockApp] Error compartiendo:', error);
-                this._showMessage('❌ Error al compartir', 'error', 3000);
-            }
-        }
+        this.filtrados = [];
+        this.paginaActual = 1;
+        this._ultimaOrden = null;
+        this._ordenAscendente = true;
     }
 
     _showMessage(texto, tipo = 'info', duration = 3000) {
