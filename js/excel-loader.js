@@ -9,9 +9,6 @@ export class ExcelLoader {
         this.estaCargando = false;
     }
 
-    /**
-     * Carga el archivo Excel desde la ruta especificada
-     */
     async cargar(ruta = './data/DOC-20251215-WA0003..xlsx') {
         if (this.estaCargando) return;
         this.estaCargando = true;
@@ -51,9 +48,6 @@ export class ExcelLoader {
         }
     }
 
-    /**
-     * Filtra los datos según un término de búsqueda
-     */
     filtrar(termino) {
         if (!termino || termino.trim() === '') {
             this.filtrados = [];
@@ -71,9 +65,6 @@ export class ExcelLoader {
         return this.filtrados;
     }
 
-    /**
-     * Obtiene un elemento por su índice original
-     */
     obtenerPorIndice(indice) {
         if (isNaN(indice) || indice < 0 || indice >= this.datos.length) {
             return null;
@@ -81,9 +72,6 @@ export class ExcelLoader {
         return this.datos[indice];
     }
 
-    /**
-     * Obtiene todos los datos (usando filtro si existe)
-     */
     obtenerDatos() {
         return this.filtrados.length > 0 ? this.filtrados : this.datos;
     }
