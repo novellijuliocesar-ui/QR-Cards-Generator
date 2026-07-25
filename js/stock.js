@@ -16,9 +16,6 @@ function normalizarTexto(texto) {
 // ========== GENERADOR DE IMAGEN DE RESULTADOS ==========
 
 class ResultsRenderer {
-    /**
-     * Genera una imagen de los resultados de búsqueda (solo Ubicación, Referencia, Descripción)
-     */
     static async generarImagen(resultados, termino = '', categoria = '', pagina = 1, total = 0) {
         return new Promise((resolve, reject) => {
             try {
@@ -30,9 +27,9 @@ class ResultsRenderer {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                const maxWidth = 700;
+                const maxWidth = 800;
                 const padding = 15;
-                const rowHeight = 28;
+                const rowHeight = 30;
                 const headerHeight = 45;
                 const titleHeight = 50;
                 
@@ -42,7 +39,7 @@ class ResultsRenderer {
                 canvas.width = maxWidth;
                 canvas.height = totalHeight;
                 
-                // Fondo con gradiente
+                // Fondo
                 const gradiente = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 gradiente.addColorStop(0, '#F2C200');
                 gradiente.addColorStop(0.3, '#F5D530');
@@ -50,7 +47,6 @@ class ResultsRenderer {
                 ctx.fillStyle = gradiente;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // Fondo blanco para el contenido
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
                 ResultsRenderer._dibujarRectRedondeado(ctx, padding, padding, canvas.width - padding * 2, canvas.height - padding * 2, 16);
                 ctx.fill();
@@ -83,14 +79,14 @@ class ResultsRenderer {
                 ctx.stroke();
                 y += 8;
                 
-                // Cabeceras de tabla (solo 3 columnas)
+                // Cabeceras - Aumentar espacio para ubicación
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 10px "Courier New", monospace';
                 ctx.textAlign = 'left';
                 
                 const textos = ['📍 Ubicación', 'Referencia', 'Descripción'];
                 const xInicial = padding + 12;
-                const colWidths = [130, 110, 400];
+                const colWidths = [200, 120, 420]; // Ubicación ahora tiene 200px
                 
                 let x = xInicial;
                 textos.forEach((text, i) => {
@@ -118,11 +114,12 @@ class ResultsRenderer {
                     
                     x = xInicial;
                     
-                    // Ubicación
+                    // Ubicación - Ahora con más espacio
                     ctx.fillStyle = '#333';
                     ctx.textAlign = 'left';
                     let texto = item.ubicacion || '—';
-                    if (texto.length > 16) texto = texto.substring(0, 15) + '…';
+                    // Truncar solo si es muy largo (más de 30 caracteres)
+                    if (texto.length > 30) texto = texto.substring(0, 29) + '…';
                     ctx.fillText(texto, x, y + 9);
                     x += colWidths[0];
                     
@@ -130,7 +127,7 @@ class ResultsRenderer {
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = 'bold 9px "Courier New", monospace';
                     texto = item.referencia || '—';
-                    if (texto.length > 12) texto = texto.substring(0, 11) + '…';
+                    if (texto.length > 15) texto = texto.substring(0, 14) + '…';
                     ctx.fillText(texto, x, y + 9);
                     x += colWidths[1];
                     ctx.font = '9px "Segoe UI", sans-serif';
@@ -139,7 +136,7 @@ class ResultsRenderer {
                     ctx.fillStyle = '#333';
                     ctx.font = '9px "Segoe UI", sans-serif';
                     texto = item.descripcion || '—';
-                    if (texto.length > 50) texto = texto.substring(0, 49) + '…';
+                    if (texto.length > 55) texto = texto.substring(0, 54) + '…';
                     ctx.fillText(texto, x, y + 9);
                     
                     y += rowHeight;
@@ -180,32 +177,26 @@ class ResultsRenderer {
     }
 }
 
-// ========== DATOS DE EJEMPLO (FALLBACK) ==========
+// ========== DATOS DE EJEMPLO ==========
 
 const DATOS_EJEMPLO = [
     {
         ubicacion: 'S1/A1/P1/H1/D1/F1',
         referencia: '45837',
-        refFabricante: '82014647-00001',
         descripcion: 'Motor-reductor engranaje. cilindricos R47DRS80M4BE2',
-        clasificacion: 'MOTORES',
-        cantidad: 2
+        clasificacion: 'MOTORES'
     },
     {
         ubicacion: 'S1/A1/P1/H1/D2/F1',
         referencia: '45838',
-        refFabricante: '82013047-00001',
         descripcion: 'Motor-reductor engranaje. cilindricos R47DRS90M4BE2/Z',
-        clasificacion: 'MOTORES',
-        cantidad: 1
+        clasificacion: 'MOTORES'
     },
     {
         ubicacion: 'S1/A1/P1/H1/D4/F1',
         referencia: '21034',
-        refFabricante: '306865',
         descripcion: 'MOTORREDUCTOR R67 DT90L4 1,5 KW 1410/27 REV/MIN',
-        clasificacion: 'MOTORES',
-        cantidad: 1
+        clasificacion: 'MOTORES'
     }
 ];
 
@@ -304,6 +295,7 @@ class StockLoader {
             const idxUbicacion = cabeceras.indexOf('Ubicación');
             const idxReferencia = cabeceras.indexOf('Referencia');
             const idxDescripcion = cabeceras.indexOf('Descripción');
+            const idxClasificacion = cabeceras.indexOf('Clasificación');
 
             this.datos = [];
 
@@ -314,12 +306,14 @@ class StockLoader {
                 const ubicacion = idxUbicacion >= 0 ? String(row[idxUbicacion] || '').trim() : '';
                 const referencia = idxReferencia >= 0 ? String(row[idxReferencia] || '').trim() : '';
                 const descripcion = idxDescripcion >= 0 ? String(row[idxDescripcion] || '').trim() : '';
+                const clasificacion = idxClasificacion >= 0 ? String(row[idxClasificacion] || '').trim() : '';
 
                 if (referencia || descripcion) {
                     this.datos.push({
                         ubicacion: ubicacion || '—',
                         referencia: referencia || '—',
-                        descripcion: descripcion || '—'
+                        descripcion: descripcion || '—',
+                        clasificacion: clasificacion || '—'
                     });
                 }
             }
@@ -364,6 +358,7 @@ class StockLoader {
                 ubicacion: normalizarTexto(item.ubicacion || ''),
                 referencia: normalizarTexto(item.referencia || ''),
                 descripcion: normalizarTexto(item.descripcion || ''),
+                clasificacion: normalizarTexto(item.clasificacion || ''),
                 _original: { ...item }
             }
         }));
@@ -380,36 +375,28 @@ class StockLoader {
             return [];
         }
 
-        if (!termino && !categoria) {
-            this.filtrados = [];
-            return [];
-        }
-
         const busquedaNormalizada = normalizarTexto(termino);
         const categoriaNormalizada = normalizarTexto(categoria);
 
-        if (termino && !busquedaNormalizada) {
-            this.filtrados = [];
-            return [];
-        }
-
-        if (categoria && !categoriaNormalizada) {
-            this.filtrados = [];
-            return [];
-        }
+        console.log('[StockLoader] Buscando - término:', termino, 'categoría:', categoria);
 
         const resultados = this.datosNormalizados
             .filter(item => {
                 const norm = item._normalizado;
                 if (!norm) return false;
 
+                // Búsqueda por texto (solo 3 campos)
                 if (busquedaNormalizada) {
                     const cumpleBusqueda = 
                         (norm.referencia || '').includes(busquedaNormalizada) ||
                         (norm.descripcion || '').includes(busquedaNormalizada) ||
                         (norm.ubicacion || '').includes(busquedaNormalizada);
-
                     if (!cumpleBusqueda) return false;
+                }
+
+                // Filtro por categoría (USA CLASIFICACION)
+                if (categoriaNormalizada) {
+                    if ((norm.clasificacion || '') !== categoriaNormalizada) return false;
                 }
 
                 return true;
@@ -419,7 +406,8 @@ class StockLoader {
                 return {
                     ubicacion: original.ubicacion || '—',
                     referencia: original.referencia || '—',
-                    descripcion: original.descripcion || '—'
+                    descripcion: original.descripcion || '—',
+                    clasificacion: original.clasificacion || '—'
                 };
             });
 
@@ -480,7 +468,7 @@ class StockApp {
                     <input 
                         type="text" 
                         id="stockSearchInput" 
-                        placeholder="Buscar por referencia, fabricante, descripción o ubicación..." 
+                        placeholder="Buscar por referencia, descripción o ubicación..." 
                         autocomplete="off"
                     >
                 </div>
@@ -593,13 +581,15 @@ class StockApp {
         this.elements.downloadImageBtn.addEventListener('click', () => this._descargarImagen());
         this.elements.shareImageBtn.addEventListener('click', () => this._compartirImagen());
 
-        // Ordenación de columnas
         this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
             th.addEventListener('click', () => {
                 const key = th.dataset.sort;
                 this._ordenarPor(key);
             });
         });
+
+        // Debug: verificar que el selector de categorías tenga opciones
+        console.log('[StockApp] Selector de categorías inicializado');
     }
 
     async _cargarDatos() {
@@ -608,11 +598,14 @@ class StockApp {
         if (this.loader.usaEjemplo) {
             this._showMessage(`⚠️ Usando datos de ejemplo (${this.datos.length} repuestos)`, 'info', 4000);
         }
+        console.log('[StockApp] Categorías cargadas:', this.loader.obtenerCategorias());
     }
 
     _poblarFiltros() {
         const select = this.elements.categoryFilter;
         const categorias = this.loader.obtenerCategorias();
+        
+        console.log('[StockApp] Poblando filtros con categorías:', categorias);
         
         select.innerHTML = '<option value="">-- Todas --</option>';
         categorias.forEach(cat => {
@@ -627,6 +620,8 @@ class StockApp {
         const termino = this.elements.searchInput.value.trim();
         const categoria = this.elements.categoryFilter.value;
 
+        console.log('[StockApp] 🔍 Buscando:', { termino, categoria });
+
         if (!termino && !categoria) {
             this._showMessage('⚠️ Introduce un término de búsqueda o selecciona una categoría', 'info', 3000);
             return;
@@ -639,11 +634,13 @@ class StockApp {
         this.paginaActual = 1;
         this.cachedImage = null;
 
+        console.log('[StockApp] Resultados encontrados:', this.filtrados.length);
+
         if (this.filtrados.length === 0) {
-            this._showMessage(`🔍 No se encontraron resultados para "${termino || categoria}"`, 'info', 3000);
+            this._showMessage(`🔍 No se encontraron resultados${termino ? ` para "${termino}"` : ''}${categoria ? ` en ${categoria}` : ''}`, 'info', 3000);
             this.elements.resultsScreen.style.display = 'block';
             this.elements.searchScreen.style.display = 'none';
-            this.elements.resultsSubtitle.textContent = `🔍 0 resultados encontrados para "${termino || categoria}"`;
+            this.elements.resultsSubtitle.textContent = `🔍 0 resultados encontrados${termino ? ` para "${termino}"` : ''}${categoria ? ` en ${categoria}` : ''}`;
             this.elements.resultsTableBody.innerHTML = `
                 <tr>
                     <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
@@ -711,14 +708,12 @@ class StockApp {
             }).join('');
         }
 
-        // Actualizar paginación
         this.elements.paginationInfo.textContent = `Mostrando ${inicio + 1}-${fin} de ${total} resultados`;
         this.elements.pageIndicator.textContent = `Página ${this.paginaActual} de ${totalPaginas || 1}`;
         
         this.elements.prevPageBtn.style.display = this.paginaActual > 1 ? 'inline-block' : 'none';
         this.elements.nextPageBtn.style.display = this.paginaActual < totalPaginas ? 'inline-block' : 'none';
         
-        // Limpiar caché de imagen al cambiar de página
         this.cachedImage = null;
     }
 
@@ -772,7 +767,6 @@ class StockApp {
     }
 
     async _generarImagen() {
-        // Obtener los resultados de la página actual
         const total = this.filtrados.length;
         const porPagina = this.resultadosPorPagina;
         const inicio = (this.paginaActual - 1) * porPagina;
