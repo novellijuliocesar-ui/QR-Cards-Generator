@@ -14,20 +14,22 @@ class App {
         this.container = document.getElementById('qrPage');
         this.elements = {};
         this.messageEl = null;
+        this.isLoading = false;
 
         this.init();
     }
 
     async init() {
+        console.log('[App] Inicializando...');
         this._buildUI();
         this._setupEventListeners();
         await this._cargarDatos();
+        console.log('[App] Inicialización completada');
     }
 
     _buildUI() {
-        // Verificar que el contenedor existe
         if (!this.container) {
-            console.error('[App] No se encontró el contenedor qrPage');
+            console.error('[App] ❌ No se encontró el contenedor qrPage');
             return;
         }
 
@@ -90,7 +92,7 @@ class App {
             </div>
         `;
 
-        // CORREGIDO: Usar this.container.querySelector en lugar de getElementById
+        // Obtener referencias con querySelector
         this.elements = {
             selectionScreen: this.container.querySelector('.selection-screen'),
             cardScreen: this.container.querySelector('#cardScreen'),
@@ -107,6 +109,8 @@ class App {
             cardDesc: this.container.querySelector('#cardDesc'),
         };
         this.messageEl = this.container.querySelector('#qrMessage');
+
+        console.log('[App] UI construida');
     }
 
     _setupEventListeners() {
@@ -130,15 +134,20 @@ class App {
         if (this.elements.backBtn) {
             this.elements.backBtn.addEventListener('click', this._handleBack.bind(this));
         }
+
+        console.log('[App] Event listeners configurados');
     }
 
     async _cargarDatos() {
+        console.log('[App] Cargando datos...');
         this.datos = await this.excelLoader.cargar();
         this._poblarSelect();
+        console.log('[App] Datos cargados:', this.datos.length);
         
-        // Si no hay datos, mostrar mensaje
         if (this.datos.length === 0) {
-            this._showMessage('⚠️ No se pudieron cargar los datos. Usando datos de ejemplo.', 'error', 5000);
+            this._showMessage('⚠️ No se pudieron cargar los datos. Verifica la consola.', 'error', 5000);
+        } else {
+            this._showMessage(`✅ ${this.datos.length} activos disponibles`, 'success', 2000);
         }
     }
 
@@ -215,7 +224,7 @@ class App {
             this._showCard();
 
         } catch (error) {
-            console.error('Error:', error);
+            console.error('[App] Error al generar:', error);
             this._showMessage('❌ Error al generar la tarjeta', 'error');
             this._showSelection();
         } finally {
@@ -251,7 +260,7 @@ class App {
             document.body.removeChild(link);
             this._showMessage('📥 Tarjeta descargada', 'success');
         } catch (error) {
-            console.error('Error:', error);
+            console.error('[App] Error al descargar:', error);
             this._showMessage('❌ Error al descargar', 'error');
         }
     }
@@ -282,7 +291,7 @@ class App {
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
-                console.error('Error:', error);
+                console.error('[App] Error al compartir:', error);
                 this._showMessage('❌ Error al compartir', 'error');
             }
         }
@@ -356,6 +365,7 @@ class App {
 
 // ========== INICIALIZAR ==========
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[App] DOM cargado, iniciando...');
     setTimeout(() => {
         window.qrApp = new App();
     }, 150);
