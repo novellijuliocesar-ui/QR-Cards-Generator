@@ -1,6 +1,6 @@
 import { mostrarMensaje, debounce } from './utils.js';
 
-// ========== FUNCIÓN DE NORMALIZACIÓN DE TEXTO ==========
+// ========== FUNCIÓN DE NORMALIZACIÓN DE TEXTO =========
 
 /**
  * Normaliza un texto para búsqueda:
