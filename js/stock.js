@@ -39,7 +39,6 @@ class ResultsRenderer {
                 canvas.width = maxWidth;
                 canvas.height = totalHeight;
                 
-                // Fondo
                 const gradiente = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 gradiente.addColorStop(0, '#F2C200');
                 gradiente.addColorStop(0.3, '#F5D530');
@@ -53,14 +52,12 @@ class ResultsRenderer {
                 
                 let y = padding + 10;
                 
-                // Título
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 16px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText('📦 Resultados de Búsqueda', canvas.width / 2, y + 16);
                 y += 28;
                 
-                // Subtítulo
                 ctx.font = '11px "Segoe UI", sans-serif';
                 ctx.fillStyle = '#666';
                 let subtitulo = `🔍 ${total || resultados.length} resultados encontrados`;
@@ -70,7 +67,6 @@ class ResultsRenderer {
                 ctx.fillText(subtitulo, canvas.width / 2, y + 10);
                 y += 25;
                 
-                // Línea separadora
                 ctx.strokeStyle = '#e0e0e0';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -79,14 +75,13 @@ class ResultsRenderer {
                 ctx.stroke();
                 y += 8;
                 
-                // Cabeceras - Aumentar espacio para ubicación
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 10px "Courier New", monospace';
                 ctx.textAlign = 'left';
                 
                 const textos = ['📍 Ubicación', 'Referencia', 'Descripción'];
                 const xInicial = padding + 12;
-                const colWidths = [200, 120, 420]; // Ubicación ahora tiene 200px
+                const colWidths = [200, 120, 420];
                 
                 let x = xInicial;
                 textos.forEach((text, i) => {
@@ -96,7 +91,6 @@ class ResultsRenderer {
                 });
                 y += 16;
                 
-                // Línea separadora de cabeceras
                 ctx.strokeStyle = '#1a1a2e';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
@@ -104,7 +98,6 @@ class ResultsRenderer {
                 ctx.lineTo(xInicial + colWidths.reduce((a, b) => a + b, 0), y - 4);
                 ctx.stroke();
                 
-                // Datos
                 const maxDisplay = Math.min(resultados.length, 30);
                 ctx.font = '9px "Segoe UI", sans-serif';
                 
@@ -114,16 +107,13 @@ class ResultsRenderer {
                     
                     x = xInicial;
                     
-                    // Ubicación - Ahora con más espacio
                     ctx.fillStyle = '#333';
                     ctx.textAlign = 'left';
                     let texto = item.ubicacion || '—';
-                    // Truncar solo si es muy largo (más de 30 caracteres)
                     if (texto.length > 30) texto = texto.substring(0, 29) + '…';
                     ctx.fillText(texto, x, y + 9);
                     x += colWidths[0];
                     
-                    // Referencia
                     ctx.fillStyle = '#1a1a2e';
                     ctx.font = 'bold 9px "Courier New", monospace';
                     texto = item.referencia || '—';
@@ -132,7 +122,6 @@ class ResultsRenderer {
                     x += colWidths[1];
                     ctx.font = '9px "Segoe UI", sans-serif';
                     
-                    // Descripción
                     ctx.fillStyle = '#333';
                     ctx.font = '9px "Segoe UI", sans-serif';
                     texto = item.descripcion || '—';
@@ -142,7 +131,6 @@ class ResultsRenderer {
                     y += rowHeight;
                 }
                 
-                // Pie de página
                 y += 8;
                 ctx.fillStyle = 'rgba(26, 26, 46, 0.4)';
                 ctx.font = '8px "Segoe UI", sans-serif';
@@ -385,7 +373,6 @@ class StockLoader {
                 const norm = item._normalizado;
                 if (!norm) return false;
 
-                // Búsqueda por texto (solo 3 campos)
                 if (busquedaNormalizada) {
                     const cumpleBusqueda = 
                         (norm.referencia || '').includes(busquedaNormalizada) ||
@@ -394,7 +381,6 @@ class StockLoader {
                     if (!cumpleBusqueda) return false;
                 }
 
-                // Filtro por categoría (USA CLASIFICACION)
                 if (categoriaNormalizada) {
                     if ((norm.clasificacion || '') !== categoriaNormalizada) return false;
                 }
@@ -489,14 +475,9 @@ class StockApp {
 
             <!-- ====== PANTALLA DE RESULTADOS ====== -->
             <div id="resultsScreen" class="results-screen" style="display: none;">
-                <div class="stock-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <div>
-                        <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
-                        <p id="resultsSubtitle" style="margin: 4px 0 0; font-size: 0.8rem;">0 resultados encontrados</p>
-                    </div>
-                    <button class="btn btn-back btn-small" id="backSearchBtn" style="margin: 0; padding: 6px 14px; font-size: 0.75rem;">
-                        ◀ Volver
-                    </button>
+                <div class="stock-header" style="text-align: center; padding: 15px;">
+                    <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
+                    <p id="resultsSubtitle" style="margin: 4px 0 0; font-size: 0.8rem;">0 resultados encontrados</p>
                 </div>
 
                 <div class="stock-table-container" id="tableContainer">
@@ -554,7 +535,6 @@ class StockApp {
             searchInput: this.container.querySelector('#stockSearchInput'),
             categoryFilter: this.container.querySelector('#categoryFilter'),
             searchBtn: this.container.querySelector('#searchBtn'),
-            backBtn: this.container.querySelector('#backSearchBtn'),
             prevPageBtn: this.container.querySelector('#prevPageBtn'),
             nextPageBtn: this.container.querySelector('#nextPageBtn'),
             pageIndicator: this.container.querySelector('#pageIndicator'),
@@ -574,7 +554,6 @@ class StockApp {
                 this._buscar();
             }
         });
-        this.elements.backBtn.addEventListener('click', () => this._volver());
         this.elements.newSearchBtn.addEventListener('click', () => this._volver());
         this.elements.prevPageBtn.addEventListener('click', () => this._cambiarPagina(-1));
         this.elements.nextPageBtn.addEventListener('click', () => this._cambiarPagina(1));
@@ -588,7 +567,6 @@ class StockApp {
             });
         });
 
-        // Debug: verificar que el selector de categorías tenga opciones
         console.log('[StockApp] Selector de categorías inicializado');
     }
 
@@ -861,14 +839,30 @@ class StockApp {
     }
 
     _volver() {
+        // Limpiar los campos de búsqueda
+        if (this.elements.searchInput) {
+            this.elements.searchInput.value = '';
+        }
+        if (this.elements.categoryFilter) {
+            this.elements.categoryFilter.value = '';
+        }
+        
+        // Ocultar resultados y mostrar búsqueda
         this.elements.resultsScreen.style.display = 'none';
         this.elements.searchScreen.style.display = 'block';
+        
+        // Limpiar datos de resultados
         this.filtrados = [];
         this.paginaActual = 1;
         this.cachedImage = null;
         this._ultimaOrden = null;
         this._ordenAscendente = true;
         this.elements.actionButtons.style.display = 'none';
+        this.terminoBusqueda = '';
+        this.categoriaBusqueda = '';
+        
+        // Limpiar mensajes
+        this._showMessage('🔄 Campos limpiados. Realiza una nueva búsqueda.', 'info', 2000);
     }
 
     _showMessage(texto, tipo = 'info', duration = 3000) {
