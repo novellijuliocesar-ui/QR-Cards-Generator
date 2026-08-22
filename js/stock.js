@@ -406,7 +406,7 @@ class StockLoader {
     }
 }
 
-// ========== CONTROLADOR DE STOCK (CON SELECCIÓN MÚLTIPLE) ==========
+// ========== CONTROLADOR DE STOCK (SELECCIÓN SOLO POR CHECKBOX) ==========
 
 class StockApp {
     constructor() {
@@ -420,11 +420,8 @@ class StockApp {
         this._ordenAscendente = true;
         this.scrollThreshold = 300;
 
-        // ===== NUEVO: Estado de selección =====
-        this.seleccionados = new Set(); // Set de índices seleccionados
-        this.modoSeleccion = false;
-        this.longPressTimer = null;
-        this.isLongPress = false;
+        // ===== Estado de selección =====
+        this.seleccionados = new Set();
 
         this.container = document.getElementById('stockPage');
         this.elements = {};
@@ -484,8 +481,8 @@ class StockApp {
                         <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
                         <p id="resultsSubtitle" style="margin: 4px 0 10px 0; font-size: 0.8rem;">0 resultados encontrados</p>
                         
-                        <!-- ====== BARRA DE SELECCIÓN (NUEVO) ====== -->
-                        <div id="selectionBar" style="display: none; background: rgba(26,26,46,0.9); border-radius: 12px; padding: 10px 15px; margin: 8px 0; display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <!-- ====== BARRA DE SELECCIÓN ====== -->
+                        <div id="selectionBar" style="display: none; background: rgba(26,26,46,0.9); border-radius: 12px; padding: 10px 15px; margin: 8px 0; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                             <span id="selectionCount" style="color: white; font-size: 0.85rem; font-weight: 600;">0 seleccionados</span>
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                                 <button class="btn btn-small btn-success" id="downloadSelectedBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">
@@ -561,7 +558,7 @@ class StockApp {
             newSearchBtnTop: this.container.querySelector('#newSearchBtnTop'),
             actionButtonsTop: this.container.querySelector('#actionButtonsTop'),
             scrollTopBtn: this.container.querySelector('#scrollTopBtn'),
-            // Nuevos elementos de selección
+            // Elementos de selección
             selectionBar: this.container.querySelector('#selectionBar'),
             selectionCount: this.container.querySelector('#selectionCount'),
             selectAllCheckbox: this.container.querySelector('#selectAllCheckbox'),
@@ -591,7 +588,7 @@ class StockApp {
             this.elements.newSearchBtnTop.addEventListener('click', () => this._volver());
         }
 
-        // ===== NUEVO: Eventos de selección =====
+        // ===== Eventos de selección SOLO por checkbox =====
         if (this.elements.selectAllCheckbox) {
             this.elements.selectAllCheckbox.addEventListener('change', (e) => {
                 this._seleccionarTodos(e.target.checked);
@@ -610,30 +607,25 @@ class StockApp {
             this.elements.clearSelectionBtn.addEventListener('click', () => this._limpiarSeleccion());
         }
 
+        // ===== Click en checkbox de fila (SOLO AQUÍ se selecciona) =====
         if (this.elements.resultsTable) {
             this.elements.resultsTable.addEventListener('click', (e) => {
+                // Ordenar solo si NO se hizo clic en un checkbox
                 const th = e.target.closest('th[data-sort]');
-                if (th && !this.modoSeleccion) {
+                if (th) {
                     this._ordenarPor(th.dataset.sort);
+                    return;
                 }
-                // Clic en checkbox de fila
+
+                // Checkbox de fila
                 const checkbox = e.target.closest('input[type="checkbox"][data-index]');
                 if (checkbox) {
                     const index = parseInt(checkbox.dataset.index);
                     this._toggleSeleccion(index);
+                    // Evitar que el checkbox se comporte de forma extraña
+                    e.stopPropagation();
                 }
             });
-        }
-
-        // ===== NUEVO: Long press para entrar en modo selección =====
-        if (this.elements.resultsTableBody) {
-            this.elements.resultsTableBody.addEventListener('mousedown', (e) => this._handlePointerDown(e));
-            this.elements.resultsTableBody.addEventListener('mouseup', () => this._handlePointerUp());
-            this.elements.resultsTableBody.addEventListener('mouseleave', () => this._handlePointerUp());
-            
-            this.elements.resultsTableBody.addEventListener('touchstart', (e) => this._handlePointerDown(e), { passive: true });
-            this.elements.resultsTableBody.addEventListener('touchend', () => this._handlePointerUp(), { passive: true });
-            this.elements.resultsTableBody.addEventListener('touchcancel', () => this._handlePointerUp(), { passive: true });
         }
 
         // Scroll
@@ -646,64 +638,24 @@ class StockApp {
         }
     }
 
-    // ===== NUEVO: Manejo de long press =====
-    _handlePointerDown(e) {
-        // Si ya estamos en modo selección, no hacer nada
-        if (this.modoSeleccion) return;
-
-        // Buscar la fila más cercana
-        const row = e.target.closest('tr[data-index]');
-        if (!row) return;
-
-        const index = parseInt(row.dataset.index);
-        if (isNaN(index)) return;
-
-        // Iniciar timer para long press (500ms)
-        this.isLongPress = false;
-        this.longPressTimer = setTimeout(() => {
-            this.isLongPress = true;
-            this._activarModoSeleccion(index);
-        }, 500);
-    }
-
-    _handlePointerUp() {
-        clearTimeout(this.longPressTimer);
-        this.longPressTimer = null;
-    }
-
-    _activarModoSeleccion(index) {
-        this.modoSeleccion = true;
-        
-        // Seleccionar el elemento que activó el long press
-        this.seleccionados.clear();
-        this.seleccionados.add(index);
-        
-        // Mostrar barra de selección
-        if (this.elements.selectionBar) {
-            this.elements.selectionBar.style.display = 'flex';
-        }
-        
-        this._actualizarSeleccion();
-        mostrarMensaje(`📌 Modo selección activado. Toca para seleccionar más.`, 'info', 2000);
-    }
+    // ===== Métodos de selección =====
 
     _toggleSeleccion(index) {
-        if (!this.modoSeleccion) {
-            // Si no estamos en modo selección, activarlo
-            this._activarModoSeleccion(index);
-            return;
-        }
-
         if (this.seleccionados.has(index)) {
             this.seleccionados.delete(index);
         } else {
             this.seleccionados.add(index);
         }
 
-        // Si no hay seleccionados, salir del modo
+        // Si no hay seleccionados, ocultar barra
         if (this.seleccionados.size === 0) {
-            this._salirModoSeleccion();
-            return;
+            if (this.elements.selectionBar) {
+                this.elements.selectionBar.style.display = 'none';
+            }
+        } else {
+            if (this.elements.selectionBar) {
+                this.elements.selectionBar.style.display = 'flex';
+            }
         }
 
         this._actualizarSeleccion();
@@ -711,7 +663,6 @@ class StockApp {
 
     _seleccionarTodos(seleccionar) {
         if (seleccionar) {
-            this.modoSeleccion = true;
             this.seleccionados.clear();
             this.filtrados.forEach((_, index) => {
                 this.seleccionados.add(index);
@@ -721,20 +672,14 @@ class StockApp {
             }
         } else {
             this.seleccionados.clear();
-            this._salirModoSeleccion();
+            if (this.elements.selectionBar) {
+                this.elements.selectionBar.style.display = 'none';
+            }
         }
         this._actualizarSeleccion();
     }
 
     _limpiarSeleccion() {
-        this.seleccionados.clear();
-        this._salirModoSeleccion();
-        this._actualizarSeleccion();
-        mostrarMensaje('🔄 Selección limpiada', 'info', 1500);
-    }
-
-    _salirModoSeleccion() {
-        this.modoSeleccion = false;
         this.seleccionados.clear();
         if (this.elements.selectionBar) {
             this.elements.selectionBar.style.display = 'none';
@@ -743,6 +688,7 @@ class StockApp {
             this.elements.selectAllCheckbox.checked = false;
         }
         this._actualizarSeleccion();
+        mostrarMensaje('🔄 Selección limpiada', 'info', 1500);
     }
 
     _actualizarSeleccion() {
@@ -759,7 +705,7 @@ class StockApp {
             if (seleccionados === 0) {
                 this.elements.selectAllCheckbox.checked = false;
                 this.elements.selectAllCheckbox.indeterminate = false;
-            } else if (seleccionados === total) {
+            } else if (seleccionados === total && total > 0) {
                 this.elements.selectAllCheckbox.checked = true;
                 this.elements.selectAllCheckbox.indeterminate = false;
             } else {
@@ -956,7 +902,13 @@ class StockApp {
         this.cachedImage = null;
 
         // Limpiar selección al hacer nueva búsqueda
-        this._salirModoSeleccion();
+        this.seleccionados.clear();
+        if (this.elements.selectionBar) {
+            this.elements.selectionBar.style.display = 'none';
+        }
+        if (this.elements.selectAllCheckbox) {
+            this.elements.selectAllCheckbox.checked = false;
+        }
 
         if (this.elements.scrollTopBtn) {
             this.elements.scrollTopBtn.style.display = 'none';
@@ -1027,9 +979,9 @@ class StockApp {
 
         tbody.innerHTML = this.filtrados.map((item, index) => {
             return `
-                <tr data-index="${index}" style="cursor: pointer; transition: background 0.2s;">
+                <tr data-index="${index}" style="cursor: default; transition: background 0.2s, border-left 0.2s;">
                     <td style="text-align: center; width: 30px;">
-                        <input type="checkbox" data-index="${index}" style="cursor: pointer; width: 16px; height: 16px;">
+                        <input type="checkbox" data-index="${index}" style="cursor: pointer; width: 16px; height: 16px; accent-color: #F2C200;">
                     </td>
                     <td><code style="font-size: 0.7rem; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${item.ubicacion}</code></td>
                     <td><strong>${item.referencia}</strong></td>
@@ -1040,11 +992,17 @@ class StockApp {
 
         this.cachedImage = null;
         this.seleccionados.clear();
-        this._salirModoSeleccion();
+        if (this.elements.selectionBar) {
+            this.elements.selectionBar.style.display = 'none';
+        }
+        if (this.elements.selectAllCheckbox) {
+            this.elements.selectAllCheckbox.checked = false;
+        }
+        this._actualizarSeleccion();
     }
 
     _ordenarPor(key) {
-        if (this.filtrados.length === 0 || this.modoSeleccion) return;
+        if (this.filtrados.length === 0) return;
         
         if (this._ultimaOrden === key) {
             this._ordenAscendente = !this._ordenAscendente;
@@ -1066,8 +1024,14 @@ class StockApp {
         });
         
         this.cachedImage = null;
+        // Limpiar selección al ordenar
         this.seleccionados.clear();
-        this._salirModoSeleccion();
+        if (this.elements.selectionBar) {
+            this.elements.selectionBar.style.display = 'none';
+        }
+        if (this.elements.selectAllCheckbox) {
+            this.elements.selectAllCheckbox.checked = false;
+        }
         this._renderResultados();
         
         this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
@@ -1167,7 +1131,13 @@ class StockApp {
         }
 
         // Limpiar selección
-        this._salirModoSeleccion();
+        this.seleccionados.clear();
+        if (this.elements.selectionBar) {
+            this.elements.selectionBar.style.display = 'none';
+        }
+        if (this.elements.selectAllCheckbox) {
+            this.elements.selectAllCheckbox.checked = false;
+        }
 
         if (this.elements.scrollTopBtn) {
             this.elements.scrollTopBtn.style.display = 'none';
