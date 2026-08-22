@@ -406,7 +406,7 @@ class StockLoader {
     }
 }
 
-// ========== CONTROLADOR DE STOCK (SELECCIÓN SOLO POR CHECKBOX) ==========
+// ========== CONTROLADOR DE STOCK (LONG PRESS ACTIVA SELECCIÓN) ==========
 
 class StockApp {
     constructor() {
@@ -422,6 +422,11 @@ class StockApp {
 
         // ===== Estado de selección =====
         this.seleccionados = new Set();
+        this.modoSeleccion = false;
+        this.longPressTimer = null;
+        this.isLongPress = false;
+        this.pressStartX = 0;
+        this.pressStartY = 0;
 
         this.container = document.getElementById('stockPage');
         this.elements = {};
@@ -588,7 +593,7 @@ class StockApp {
             this.elements.newSearchBtnTop.addEventListener('click', () => this._volver());
         }
 
-        // ===== Eventos de selección SOLO por checkbox =====
+        // ===== Eventos de selección =====
         if (this.elements.selectAllCheckbox) {
             this.elements.selectAllCheckbox.addEventListener('change', (e) => {
                 this._seleccionarTodos(e.target.checked);
@@ -607,25 +612,50 @@ class StockApp {
             this.elements.clearSelectionBtn.addEventListener('click', () => this._limpiarSeleccion());
         }
 
-        // ===== Click en checkbox de fila (SOLO AQUÍ se selecciona) =====
+        // ===== Click en checkbox de fila (SOLO cuando está en modo selección) =====
         if (this.elements.resultsTable) {
             this.elements.resultsTable.addEventListener('click', (e) => {
                 // Ordenar solo si NO se hizo clic en un checkbox
                 const th = e.target.closest('th[data-sort]');
                 if (th) {
+                    // Si estamos en modo selección, no ordenar
+                    if (this.modoSeleccion) {
+                        mostrarMensaje('⚠️ Sal del modo selección para ordenar', 'info', 1500);
+                        return;
+                    }
                     this._ordenarPor(th.dataset.sort);
                     return;
                 }
 
-                // Checkbox de fila
+                // Checkbox de fila - SOLO funciona si estamos en modo selección
                 const checkbox = e.target.closest('input[type="checkbox"][data-index]');
                 if (checkbox) {
+                    // Si no estamos en modo selección, ignorar el click en el checkbox
+                    if (!this.modoSeleccion) {
+                        mostrarMensaje('💡 Mantén presionado un elemento para activar la selección', 'info', 1500);
+                        // Desmarcar el checkbox
+                        checkbox.checked = false;
+                        return;
+                    }
                     const index = parseInt(checkbox.dataset.index);
                     this._toggleSeleccion(index);
-                    // Evitar que el checkbox se comporte de forma extraña
                     e.stopPropagation();
                 }
             });
+        }
+
+        // ===== LONG PRESS: Activar modo selección =====
+        if (this.elements.resultsTableBody) {
+            // Eventos táctiles
+            this.elements.resultsTableBody.addEventListener('touchstart', (e) => this._handleTouchStart(e), { passive: true });
+            this.elements.resultsTableBody.addEventListener('touchmove', (e) => this._handleTouchMove(e), { passive: true });
+            this.elements.resultsTableBody.addEventListener('touchend', (e) => this._handleTouchEnd(e), { passive: true });
+            this.elements.resultsTableBody.addEventListener('touchcancel', (e) => this._handleTouchEnd(e), { passive: true });
+
+            // Eventos de ratón
+            this.elements.resultsTableBody.addEventListener('mousedown', (e) => this._handleMouseDown(e));
+            this.elements.resultsTableBody.addEventListener('mouseup', (e) => this._handleMouseUp(e));
+            this.elements.resultsTableBody.addEventListener('mouseleave', (e) => this._handleMouseLeave(e));
         }
 
         // Scroll
@@ -638,30 +668,166 @@ class StockApp {
         }
     }
 
-    // ===== Métodos de selección =====
+    // ===== LONG PRESS - Manejo táctil =====
+    _handleTouchStart(e) {
+        if (this.modoSeleccion) return;
+        
+        const touch = e.touches[0];
+        const row = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('tr[data-index]');
+        if (!row) return;
 
+        const index = parseInt(row.dataset.index);
+        if (isNaN(index)) return;
+
+        this.pressStartX = touch.clientX;
+        this.pressStartY = touch.clientY;
+        this.isLongPress = false;
+        
+        this.longPressTimer = setTimeout(() => {
+            this.isLongPress = true;
+            this._activarModoSeleccion(index);
+            // Feedback háptico si está disponible
+            if (navigator.vibrate) {
+                navigator.vibrate(20);
+            }
+        }, 500);
+    }
+
+    _handleTouchMove(e) {
+        if (this.longPressTimer) {
+            const touch = e.touches[0];
+            const dx = Math.abs(touch.clientX - this.pressStartX);
+            const dy = Math.abs(touch.clientY - this.pressStartY);
+            if (dx > 10 || dy > 10) {
+                clearTimeout(this.longPressTimer);
+                this.longPressTimer = null;
+            }
+        }
+    }
+
+    _handleTouchEnd(e) {
+        clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
+    }
+
+    // ===== LONG PRESS - Manejo con ratón =====
+    _handleMouseDown(e) {
+        if (this.modoSeleccion) return;
+        if (e.button !== 0) return;
+        
+        const row = e.target.closest('tr[data-index]');
+        if (!row) return;
+
+        const index = parseInt(row.dataset.index);
+        if (isNaN(index)) return;
+
+        this.pressStartX = e.clientX;
+        this.pressStartY = e.clientY;
+        this.isLongPress = false;
+        
+        this.longPressTimer = setTimeout(() => {
+            this.isLongPress = true;
+            this._activarModoSeleccion(index);
+        }, 500);
+    }
+
+    _handleMouseUp(e) {
+        clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
+    }
+
+    _handleMouseLeave(e) {
+        clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
+    }
+
+    // ===== Activar modo selección =====
+    _activarModoSeleccion(index) {
+        if (this.modoSeleccion) return;
+        
+        this.modoSeleccion = true;
+        
+        // Seleccionar el elemento que activó el long press
+        this.seleccionados.clear();
+        this.seleccionados.add(index);
+        
+        // Mostrar barra de selección
+        if (this.elements.selectionBar) {
+            this.elements.selectionBar.style.display = 'flex';
+        }
+        
+        // Mostrar los checkboxes (cambiar opacidad de las filas)
+        const rows = this.elements.resultsTableBody.querySelectorAll('tr[data-index]');
+        rows.forEach(row => {
+            row.style.opacity = '1';
+            row.style.cursor = 'default';
+        });
+        
+        this._actualizarSeleccion();
+        mostrarMensaje(`📌 Modo selección activado (${this.seleccionados.size} seleccionado)`, 'info', 2000);
+    }
+
+    // ===== Salir del modo selección =====
+    _salirModoSeleccion() {
+        this.modoSeleccion = false;
+        this.seleccionados.clear();
+        
+        if (this.elements.selectionBar) {
+            this.elements.selectionBar.style.display = 'none';
+        }
+        if (this.elements.selectAllCheckbox) {
+            this.elements.selectAllCheckbox.checked = false;
+        }
+        
+        // Restaurar opacidad de las filas
+        const rows = this.elements.resultsTableBody.querySelectorAll('tr[data-index]');
+        rows.forEach(row => {
+            row.style.background = '';
+            row.style.borderLeft = '';
+            row.style.opacity = '1';
+        });
+        
+        this._actualizarSeleccion();
+    }
+
+    // ===== Toggle selección de un elemento =====
     _toggleSeleccion(index) {
+        if (!this.modoSeleccion) return;
+
         if (this.seleccionados.has(index)) {
             this.seleccionados.delete(index);
         } else {
             this.seleccionados.add(index);
         }
 
-        // Si no hay seleccionados, ocultar barra
+        // Si no hay seleccionados, salir del modo
         if (this.seleccionados.size === 0) {
-            if (this.elements.selectionBar) {
-                this.elements.selectionBar.style.display = 'none';
-            }
-        } else {
-            if (this.elements.selectionBar) {
-                this.elements.selectionBar.style.display = 'flex';
-            }
+            this._salirModoSeleccion();
+            mostrarMensaje('🔄 Selección limpiada', 'info', 1500);
+            return;
         }
 
         this._actualizarSeleccion();
     }
 
+    // ===== Seleccionar todos =====
     _seleccionarTodos(seleccionar) {
+        if (!this.modoSeleccion) {
+            // Si no estamos en modo selección, activarlo
+            if (seleccionar && this.filtrados.length > 0) {
+                // Activar modo selección con el primer elemento
+                this._activarModoSeleccion(0);
+                // Luego seleccionar todos
+                this.seleccionados.clear();
+                this.filtrados.forEach((_, index) => {
+                    this.seleccionados.add(index);
+                });
+                this._actualizarSeleccion();
+                mostrarMensaje(`✅ ${this.seleccionados.size} elementos seleccionados`, 'success', 1500);
+            }
+            return;
+        }
+
         if (seleccionar) {
             this.seleccionados.clear();
             this.filtrados.forEach((_, index) => {
@@ -672,25 +838,18 @@ class StockApp {
             }
         } else {
             this.seleccionados.clear();
-            if (this.elements.selectionBar) {
-                this.elements.selectionBar.style.display = 'none';
-            }
+            this._salirModoSeleccion();
         }
         this._actualizarSeleccion();
     }
 
+    // ===== Limpiar selección =====
     _limpiarSeleccion() {
-        this.seleccionados.clear();
-        if (this.elements.selectionBar) {
-            this.elements.selectionBar.style.display = 'none';
-        }
-        if (this.elements.selectAllCheckbox) {
-            this.elements.selectAllCheckbox.checked = false;
-        }
-        this._actualizarSeleccion();
+        this._salirModoSeleccion();
         mostrarMensaje('🔄 Selección limpiada', 'info', 1500);
     }
 
+    // ===== Actualizar UI de selección =====
     _actualizarSeleccion() {
         const total = this.filtrados.length;
         const seleccionados = this.seleccionados.size;
@@ -758,6 +917,11 @@ class StockApp {
 
     // ===== Descargar seleccionados =====
     async _descargarSeleccionados() {
+        if (!this.modoSeleccion || this.seleccionados.size === 0) {
+            mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
+            return;
+        }
+
         const seleccionados = this._obtenerSeleccionados();
         if (seleccionados.length === 0) {
             mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
@@ -795,6 +959,11 @@ class StockApp {
 
     // ===== Compartir seleccionados =====
     async _compartirSeleccionados() {
+        if (!this.modoSeleccion || this.seleccionados.size === 0) {
+            mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
+            return;
+        }
+
         const seleccionados = this._obtenerSeleccionados();
         if (seleccionados.length === 0) {
             mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
@@ -902,13 +1071,7 @@ class StockApp {
         this.cachedImage = null;
 
         // Limpiar selección al hacer nueva búsqueda
-        this.seleccionados.clear();
-        if (this.elements.selectionBar) {
-            this.elements.selectionBar.style.display = 'none';
-        }
-        if (this.elements.selectAllCheckbox) {
-            this.elements.selectAllCheckbox.checked = false;
-        }
+        this._salirModoSeleccion();
 
         if (this.elements.scrollTopBtn) {
             this.elements.scrollTopBtn.style.display = 'none';
@@ -979,7 +1142,7 @@ class StockApp {
 
         tbody.innerHTML = this.filtrados.map((item, index) => {
             return `
-                <tr data-index="${index}" style="cursor: default; transition: background 0.2s, border-left 0.2s;">
+                <tr data-index="${index}" style="cursor: default; transition: background 0.2s, border-left 0.2s; opacity: 1;">
                     <td style="text-align: center; width: 30px;">
                         <input type="checkbox" data-index="${index}" style="cursor: pointer; width: 16px; height: 16px; accent-color: #F2C200;">
                     </td>
@@ -991,18 +1154,16 @@ class StockApp {
         }).join('');
 
         this.cachedImage = null;
-        this.seleccionados.clear();
-        if (this.elements.selectionBar) {
-            this.elements.selectionBar.style.display = 'none';
-        }
-        if (this.elements.selectAllCheckbox) {
-            this.elements.selectAllCheckbox.checked = false;
-        }
-        this._actualizarSeleccion();
+        this._salirModoSeleccion();
     }
 
     _ordenarPor(key) {
-        if (this.filtrados.length === 0) return;
+        if (this.filtrados.length === 0 || this.modoSeleccion) {
+            if (this.modoSeleccion) {
+                mostrarMensaje('⚠️ Sal del modo selección para ordenar', 'info', 1500);
+            }
+            return;
+        }
         
         if (this._ultimaOrden === key) {
             this._ordenAscendente = !this._ordenAscendente;
@@ -1024,14 +1185,7 @@ class StockApp {
         });
         
         this.cachedImage = null;
-        // Limpiar selección al ordenar
-        this.seleccionados.clear();
-        if (this.elements.selectionBar) {
-            this.elements.selectionBar.style.display = 'none';
-        }
-        if (this.elements.selectAllCheckbox) {
-            this.elements.selectAllCheckbox.checked = false;
-        }
+        this._salirModoSeleccion();
         this._renderResultados();
         
         this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
@@ -1131,13 +1285,7 @@ class StockApp {
         }
 
         // Limpiar selección
-        this.seleccionados.clear();
-        if (this.elements.selectionBar) {
-            this.elements.selectionBar.style.display = 'none';
-        }
-        if (this.elements.selectAllCheckbox) {
-            this.elements.selectAllCheckbox.checked = false;
-        }
+        this._salirModoSeleccion();
 
         if (this.elements.scrollTopBtn) {
             this.elements.scrollTopBtn.style.display = 'none';
