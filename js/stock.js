@@ -60,7 +60,7 @@ class ResultsRenderer {
                 
                 ctx.font = '11px "Segoe UI", sans-serif';
                 ctx.fillStyle = '#666';
-                let subtitulo = `🔍 ${resultados.length} elementos seleccionados`;
+                let subtitulo = `🔍 ${resultados.length} elementos`;
                 if (termino) subtitulo += ` - "${termino}"`;
                 if (categoria) subtitulo += ` - ${categoria}`;
                 ctx.fillText(subtitulo, canvas.width / 2, y + 10);
@@ -406,7 +406,7 @@ class StockLoader {
     }
 }
 
-// ========== CONTROLADOR DE STOCK (LONG PRESS ACTIVA SELECCIÓN) ==========
+// ========== CONTROLADOR DE STOCK ==========
 
 class StockApp {
     constructor() {
@@ -424,7 +424,6 @@ class StockApp {
         this.seleccionados = new Set();
         this.modoSeleccion = false;
         this.longPressTimer = null;
-        this.isLongPress = false;
         this.pressStartX = 0;
         this.pressStartY = 0;
 
@@ -486,20 +485,12 @@ class StockApp {
                         <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
                         <p id="resultsSubtitle" style="margin: 4px 0 10px 0; font-size: 0.8rem;">0 resultados encontrados</p>
                         
-                        <!-- ====== BARRA DE SELECCIÓN ====== -->
-                        <div id="selectionBar" style="display: none; background: rgba(26,26,46,0.9); border-radius: 12px; padding: 10px 15px; margin: 8px 0; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <!-- ====== BARRA DE SELECCIÓN (SOLO CONTADOR + BOTÓN LIMPIAR) ====== -->
+                        <div id="selectionBar" style="display: none; background: rgba(26,26,46,0.9); border-radius: 12px; padding: 8px 15px; margin: 8px 0; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
                             <span id="selectionCount" style="color: white; font-size: 0.85rem; font-weight: 600;">0 seleccionados</span>
-                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                <button class="btn btn-small btn-success" id="downloadSelectedBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">
-                                    📥 Descargar
-                                </button>
-                                <button class="btn btn-small btn-success" id="shareSelectedBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">
-                                    📤 Compartir
-                                </button>
-                                <button class="btn btn-small btn-back" id="clearSelectionBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0; background: #dc3545;">
-                                    ✕
-                                </button>
-                            </div>
+                            <button class="btn btn-small btn-back" id="clearSelectionBtn" style="padding: 4px 14px; font-size: 0.7rem; margin: 0; background: #dc3545; border-radius: 8px;">
+                                ✕ Limpiar
+                            </button>
                         </div>
 
                         <!-- ====== BOTONES DE ACCIÓN (ARRIBA) ====== -->
@@ -521,8 +512,8 @@ class StockApp {
                             <table class="stock-table" id="resultsTable">
                                 <thead>
                                     <tr>
-                                        <th style="width: 30px; text-align: center;">
-                                            <input type="checkbox" id="selectAllCheckbox" style="cursor: pointer; width: 16px; height: 16px;">
+                                        <th style="width: 30px; text-align: center; display: none;" id="checkboxHeader">
+                                            <input type="checkbox" id="selectAllCheckbox" style="cursor: pointer; width: 16px; height: 16px; accent-color: #F2C200;">
                                         </th>
                                         <th data-sort="ubicacion" style="cursor: pointer;">📍 Ubicación</th>
                                         <th data-sort="referencia" style="cursor: pointer;">Referencia</th>
@@ -567,8 +558,7 @@ class StockApp {
             selectionBar: this.container.querySelector('#selectionBar'),
             selectionCount: this.container.querySelector('#selectionCount'),
             selectAllCheckbox: this.container.querySelector('#selectAllCheckbox'),
-            downloadSelectedBtn: this.container.querySelector('#downloadSelectedBtn'),
-            shareSelectedBtn: this.container.querySelector('#shareSelectedBtn'),
+            checkboxHeader: this.container.querySelector('#checkboxHeader'),
             clearSelectionBtn: this.container.querySelector('#clearSelectionBtn'),
         };
     }
@@ -600,29 +590,16 @@ class StockApp {
             });
         }
 
-        if (this.elements.downloadSelectedBtn) {
-            this.elements.downloadSelectedBtn.addEventListener('click', () => this._descargarSeleccionados());
-        }
-
-        if (this.elements.shareSelectedBtn) {
-            this.elements.shareSelectedBtn.addEventListener('click', () => this._compartirSeleccionados());
-        }
-
         if (this.elements.clearSelectionBtn) {
             this.elements.clearSelectionBtn.addEventListener('click', () => this._limpiarSeleccion());
         }
 
-        // ===== Click en checkbox de fila (SOLO cuando está en modo selección) =====
+        // ===== Click en checkbox de fila =====
         if (this.elements.resultsTable) {
             this.elements.resultsTable.addEventListener('click', (e) => {
-                // Ordenar solo si NO se hizo clic en un checkbox
+                // Ordenar
                 const th = e.target.closest('th[data-sort]');
                 if (th) {
-                    // Si estamos en modo selección, no ordenar
-                    if (this.modoSeleccion) {
-                        mostrarMensaje('⚠️ Sal del modo selección para ordenar', 'info', 1500);
-                        return;
-                    }
                     this._ordenarPor(th.dataset.sort);
                     return;
                 }
@@ -630,13 +607,7 @@ class StockApp {
                 // Checkbox de fila - SOLO funciona si estamos en modo selección
                 const checkbox = e.target.closest('input[type="checkbox"][data-index]');
                 if (checkbox) {
-                    // Si no estamos en modo selección, ignorar el click en el checkbox
-                    if (!this.modoSeleccion) {
-                        mostrarMensaje('💡 Mantén presionado un elemento para activar la selección', 'info', 1500);
-                        // Desmarcar el checkbox
-                        checkbox.checked = false;
-                        return;
-                    }
+                    if (!this.modoSeleccion) return;
                     const index = parseInt(checkbox.dataset.index);
                     this._toggleSeleccion(index);
                     e.stopPropagation();
@@ -681,12 +652,9 @@ class StockApp {
 
         this.pressStartX = touch.clientX;
         this.pressStartY = touch.clientY;
-        this.isLongPress = false;
         
         this.longPressTimer = setTimeout(() => {
-            this.isLongPress = true;
             this._activarModoSeleccion(index);
-            // Feedback háptico si está disponible
             if (navigator.vibrate) {
                 navigator.vibrate(20);
             }
@@ -723,10 +691,8 @@ class StockApp {
 
         this.pressStartX = e.clientX;
         this.pressStartY = e.clientY;
-        this.isLongPress = false;
         
         this.longPressTimer = setTimeout(() => {
-            this.isLongPress = true;
             this._activarModoSeleccion(index);
         }, 500);
     }
@@ -751,17 +717,24 @@ class StockApp {
         this.seleccionados.clear();
         this.seleccionados.add(index);
         
+        // Mostrar columna de checkboxes
+        if (this.elements.checkboxHeader) {
+            this.elements.checkboxHeader.style.display = 'table-cell';
+        }
+        
+        // Mostrar checkboxes en las filas
+        const rows = this.elements.resultsTableBody.querySelectorAll('tr[data-index]');
+        rows.forEach(row => {
+            const td = row.querySelector('td:first-child');
+            if (td) {
+                td.style.display = 'table-cell';
+            }
+        });
+        
         // Mostrar barra de selección
         if (this.elements.selectionBar) {
             this.elements.selectionBar.style.display = 'flex';
         }
-        
-        // Mostrar los checkboxes (cambiar opacidad de las filas)
-        const rows = this.elements.resultsTableBody.querySelectorAll('tr[data-index]');
-        rows.forEach(row => {
-            row.style.opacity = '1';
-            row.style.cursor = 'default';
-        });
         
         this._actualizarSeleccion();
         mostrarMensaje(`📌 Modo selección activado (${this.seleccionados.size} seleccionado)`, 'info', 2000);
@@ -772,20 +745,28 @@ class StockApp {
         this.modoSeleccion = false;
         this.seleccionados.clear();
         
+        // Ocultar columna de checkboxes
+        if (this.elements.checkboxHeader) {
+            this.elements.checkboxHeader.style.display = 'none';
+        }
+        
+        // Ocultar checkboxes en las filas
+        const rows = this.elements.resultsTableBody.querySelectorAll('tr[data-index]');
+        rows.forEach(row => {
+            const td = row.querySelector('td:first-child');
+            if (td) {
+                td.style.display = 'none';
+            }
+            row.style.background = '';
+            row.style.borderLeft = '';
+        });
+        
         if (this.elements.selectionBar) {
             this.elements.selectionBar.style.display = 'none';
         }
         if (this.elements.selectAllCheckbox) {
             this.elements.selectAllCheckbox.checked = false;
         }
-        
-        // Restaurar opacidad de las filas
-        const rows = this.elements.resultsTableBody.querySelectorAll('tr[data-index]');
-        rows.forEach(row => {
-            row.style.background = '';
-            row.style.borderLeft = '';
-            row.style.opacity = '1';
-        });
         
         this._actualizarSeleccion();
     }
@@ -813,11 +794,8 @@ class StockApp {
     // ===== Seleccionar todos =====
     _seleccionarTodos(seleccionar) {
         if (!this.modoSeleccion) {
-            // Si no estamos en modo selección, activarlo
             if (seleccionar && this.filtrados.length > 0) {
-                // Activar modo selección con el primer elemento
                 this._activarModoSeleccion(0);
-                // Luego seleccionar todos
                 this.seleccionados.clear();
                 this.filtrados.forEach((_, index) => {
                     this.seleccionados.add(index);
@@ -903,108 +881,21 @@ class StockApp {
         }
     }
 
-    // ===== Obtener elementos seleccionados =====
-    _obtenerSeleccionados() {
-        const seleccionados = [];
-        const indices = Array.from(this.seleccionados).sort((a, b) => a - b);
-        indices.forEach(index => {
-            if (this.filtrados[index]) {
-                seleccionados.push(this.filtrados[index]);
-            }
-        });
-        return seleccionados;
-    }
-
-    // ===== Descargar seleccionados =====
-    async _descargarSeleccionados() {
-        if (!this.modoSeleccion || this.seleccionados.size === 0) {
-            mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
-            return;
+    // ===== Obtener elementos a exportar =====
+    _obtenerElementosAExportar() {
+        // Si hay selección, devolver solo los seleccionados
+        if (this.modoSeleccion && this.seleccionados.size > 0) {
+            const seleccionados = [];
+            const indices = Array.from(this.seleccionados).sort((a, b) => a - b);
+            indices.forEach(index => {
+                if (this.filtrados[index]) {
+                    seleccionados.push(this.filtrados[index]);
+                }
+            });
+            return seleccionados;
         }
-
-        const seleccionados = this._obtenerSeleccionados();
-        if (seleccionados.length === 0) {
-            mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
-            return;
-        }
-
-        mostrarMensaje(`🖼️ Generando imagen con ${seleccionados.length} elementos...`, 'info', 0);
-
-        try {
-            const imageData = await ResultsRenderer.generarImagen(
-                seleccionados,
-                this.terminoBusqueda,
-                this.categoriaBusqueda,
-                `Selección (${seleccionados.length} elementos)`
-            );
-
-            if (!imageData) {
-                mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
-                return;
-            }
-
-            const link = document.createElement('a');
-            const fecha = new Date().toISOString().slice(0, 10);
-            link.download = `stock-seleccion-${seleccionados.length}-${fecha}.png`;
-            link.href = imageData;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            mostrarMensaje(`📥 ${seleccionados.length} elementos descargados`, 'success', 2000);
-        } catch (error) {
-            console.error('[StockApp] Error:', error);
-            mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
-        }
-    }
-
-    // ===== Compartir seleccionados =====
-    async _compartirSeleccionados() {
-        if (!this.modoSeleccion || this.seleccionados.size === 0) {
-            mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
-            return;
-        }
-
-        const seleccionados = this._obtenerSeleccionados();
-        if (seleccionados.length === 0) {
-            mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
-            return;
-        }
-
-        mostrarMensaje(`🖼️ Generando imagen con ${seleccionados.length} elementos...`, 'info', 0);
-
-        try {
-            const imageData = await ResultsRenderer.generarImagen(
-                seleccionados,
-                this.terminoBusqueda,
-                this.categoriaBusqueda,
-                `Selección (${seleccionados.length} elementos)`
-            );
-
-            if (!imageData) {
-                mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
-                return;
-            }
-
-            const blob = await (await fetch(imageData)).blob();
-            const file = new File([blob], `stock-seleccion-${seleccionados.length}.png`, { type: 'image/png' });
-
-            if (navigator.share && navigator.canShare?.({ files: [file] })) {
-                await navigator.share({
-                    title: 'Stock seleccionado',
-                    text: `📦 ${seleccionados.length} repuestos seleccionados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}`,
-                    files: [file]
-                });
-                mostrarMensaje('📤 Compartido correctamente', 'success', 2000);
-            } else {
-                mostrarMensaje('📱 Compartir no soportado, se descargará', 'info', 2000);
-                this._descargarSeleccionados();
-            }
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error('[StockApp] Error:', error);
-                mostrarMensaje('❌ Error al compartir', 'error', 3000);
-            }
-        }
+        // Si no hay selección, devolver todos
+        return this.filtrados;
     }
 
     // ===== Scroll =====
@@ -1142,8 +1033,8 @@ class StockApp {
 
         tbody.innerHTML = this.filtrados.map((item, index) => {
             return `
-                <tr data-index="${index}" style="cursor: default; transition: background 0.2s, border-left 0.2s; opacity: 1;">
-                    <td style="text-align: center; width: 30px;">
+                <tr data-index="${index}" style="cursor: default; transition: background 0.2s, border-left 0.2s;">
+                    <td style="text-align: center; width: 30px; display: none;">
                         <input type="checkbox" data-index="${index}" style="cursor: pointer; width: 16px; height: 16px; accent-color: #F2C200;">
                     </td>
                     <td><code style="font-size: 0.7rem; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${item.ubicacion}</code></td>
@@ -1158,12 +1049,7 @@ class StockApp {
     }
 
     _ordenarPor(key) {
-        if (this.filtrados.length === 0 || this.modoSeleccion) {
-            if (this.modoSeleccion) {
-                mostrarMensaje('⚠️ Sal del modo selección para ordenar', 'info', 1500);
-            }
-            return;
-        }
+        if (this.filtrados.length === 0) return;
         
         if (this._ultimaOrden === key) {
             this._ordenAscendente = !this._ordenAscendente;
@@ -1215,25 +1101,31 @@ class StockApp {
     }
 
     async _descargarImagen() {
-        if (this.filtrados.length === 0) {
-            mostrarMensaje('⚠️ No hay resultados para descargar', 'info', 3000);
+        const elementos = this._obtenerElementosAExportar();
+        
+        if (elementos.length === 0) {
+            mostrarMensaje('⚠️ No hay elementos para descargar', 'info', 3000);
             return;
         }
 
-        mostrarMensaje('🖼️ Generando imagen...', 'info', 0);
+        const tieneSeleccion = this.modoSeleccion && this.seleccionados.size > 0;
+        const titulo = tieneSeleccion ? `Selección (${elementos.length} elementos)` : 'Resultados de Búsqueda';
+        
+        mostrarMensaje(`🖼️ Generando imagen con ${elementos.length} elementos...`, 'info', 0);
 
-        const imageData = await this._generarImagen(this.filtrados);
+        const imageData = await this._generarImagen(elementos, titulo);
         if (!imageData) return;
 
         try {
             const link = document.createElement('a');
             const fecha = new Date().toISOString().slice(0, 10);
-            link.download = `stock-resultados-${fecha}.png`;
+            const sufijo = tieneSeleccion ? `-seleccion-${elementos.length}` : '';
+            link.download = `stock${sufijo}-${fecha}.png`;
             link.href = imageData;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            mostrarMensaje('📥 Imagen descargada', 'success', 2000);
+            mostrarMensaje(`📥 ${elementos.length} elementos descargados`, 'success', 2000);
         } catch (error) {
             console.error('[StockApp] Error descargando:', error);
             mostrarMensaje('❌ Error al descargar', 'error', 3000);
@@ -1241,24 +1133,32 @@ class StockApp {
     }
 
     async _compartirImagen() {
-        if (this.filtrados.length === 0) {
-            mostrarMensaje('⚠️ No hay resultados para compartir', 'info', 3000);
+        const elementos = this._obtenerElementosAExportar();
+        
+        if (elementos.length === 0) {
+            mostrarMensaje('⚠️ No hay elementos para compartir', 'info', 3000);
             return;
         }
 
-        mostrarMensaje('🖼️ Generando imagen...', 'info', 0);
+        const tieneSeleccion = this.modoSeleccion && this.seleccionados.size > 0;
+        const titulo = tieneSeleccion ? `Selección (${elementos.length} elementos)` : 'Resultados de Búsqueda';
+        
+        mostrarMensaje(`🖼️ Generando imagen con ${elementos.length} elementos...`, 'info', 0);
 
-        const imageData = await this._generarImagen(this.filtrados);
+        const imageData = await this._generarImagen(elementos, titulo);
         if (!imageData) return;
 
         try {
             const blob = await (await fetch(imageData)).blob();
-            const file = new File([blob], 'stock-resultados.png', { type: 'image/png' });
+            const file = new File([blob], `stock${tieneSeleccion ? '-seleccion' : ''}.png`, { type: 'image/png' });
 
             if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                const mensaje = tieneSeleccion 
+                    ? `📦 ${elementos.length} repuestos seleccionados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}`
+                    : `📦 ${elementos.length} repuestos encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}`;
                 await navigator.share({
-                    title: 'Resultados de stock',
-                    text: `📦 ${this.filtrados.length} repuestos encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}`,
+                    title: 'Stock',
+                    text: mensaje,
                     files: [file]
                 });
                 mostrarMensaje('📤 Compartido correctamente', 'success', 2000);
