@@ -16,7 +16,7 @@ function normalizarTexto(texto) {
 // ========== GENERADOR DE IMAGEN DE RESULTADOS ==========
 
 class ResultsRenderer {
-    static async generarImagen(resultados, termino = '', categoria = '', pagina = 1, total = 0) {
+    static async generarImagen(resultados, termino = '', categoria = '', titulo = 'Resultados de Búsqueda') {
         return new Promise((resolve, reject) => {
             try {
                 if (!resultados || !Array.isArray(resultados) || resultados.length === 0) {
@@ -33,7 +33,7 @@ class ResultsRenderer {
                 const headerHeight = 45;
                 const titleHeight = 50;
                 
-                const resultsCount = Math.min(resultados.length, 30);
+                const resultsCount = Math.min(resultados.length, 50);
                 const totalHeight = titleHeight + headerHeight + (resultsCount * rowHeight) + padding * 2 + 45;
                 
                 canvas.width = maxWidth;
@@ -55,12 +55,12 @@ class ResultsRenderer {
                 ctx.fillStyle = '#1a1a2e';
                 ctx.font = 'bold 16px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('📦 Resultados de Búsqueda', canvas.width / 2, y + 16);
+                ctx.fillText(`📦 ${titulo}`, canvas.width / 2, y + 16);
                 y += 28;
                 
                 ctx.font = '11px "Segoe UI", sans-serif';
                 ctx.fillStyle = '#666';
-                let subtitulo = `🔍 ${total || resultados.length} resultados encontrados`;
+                let subtitulo = `🔍 ${resultados.length} elementos seleccionados`;
                 if (termino) subtitulo += ` - "${termino}"`;
                 if (categoria) subtitulo += ` - ${categoria}`;
                 ctx.fillText(subtitulo, canvas.width / 2, y + 10);
@@ -97,7 +97,7 @@ class ResultsRenderer {
                 ctx.lineTo(xInicial + colWidths.reduce((a, b) => a + b, 0), y - 4);
                 ctx.stroke();
                 
-                const maxDisplay = Math.min(resultados.length, 30);
+                const maxDisplay = Math.min(resultados.length, 50);
                 ctx.font = '9px "Segoe UI", sans-serif';
                 
                 for (let i = 0; i < maxDisplay; i++) {
@@ -406,7 +406,7 @@ class StockLoader {
     }
 }
 
-// ========== CONTROLADOR DE STOCK (CON BOTÓN VOLVER ARRIBA) ==========
+// ========== CONTROLADOR DE STOCK (CON SELECCIÓN MÚLTIPLE) ==========
 
 class StockApp {
     constructor() {
@@ -418,7 +418,13 @@ class StockApp {
         this.cachedImage = null;
         this._ultimaOrden = null;
         this._ordenAscendente = true;
-        this.scrollThreshold = 300; // Umbral para mostrar el botón
+        this.scrollThreshold = 300;
+
+        // ===== NUEVO: Estado de selección =====
+        this.seleccionados = new Set(); // Set de índices seleccionados
+        this.modoSeleccion = false;
+        this.longPressTimer = null;
+        this.isLongPress = false;
 
         this.container = document.getElementById('stockPage');
         this.elements = {};
@@ -432,7 +438,6 @@ class StockApp {
         this._poblarFiltros();
         this._setupEventListeners();
         
-        // Añadir clase 'centered' al wrapper inicialmente (modo búsqueda)
         const wrapper = this.container.querySelector('.stock-wrapper');
         if (wrapper) {
             wrapper.classList.add('centered');
@@ -440,7 +445,6 @@ class StockApp {
     }
 
     _buildUI() {
-        // Envolvemos todo en un wrapper
         this.container.innerHTML = `
             <div class="stock-wrapper centered">
                 <!-- ====== PANTALLA DE BÚSQUEDA ====== -->
@@ -480,6 +484,22 @@ class StockApp {
                         <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
                         <p id="resultsSubtitle" style="margin: 4px 0 10px 0; font-size: 0.8rem;">0 resultados encontrados</p>
                         
+                        <!-- ====== BARRA DE SELECCIÓN (NUEVO) ====== -->
+                        <div id="selectionBar" style="display: none; background: rgba(26,26,46,0.9); border-radius: 12px; padding: 10px 15px; margin: 8px 0; display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                            <span id="selectionCount" style="color: white; font-size: 0.85rem; font-weight: 600;">0 seleccionados</span>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button class="btn btn-small btn-success" id="downloadSelectedBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">
+                                    📥 Descargar
+                                </button>
+                                <button class="btn btn-small btn-success" id="shareSelectedBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">
+                                    📤 Compartir
+                                </button>
+                                <button class="btn btn-small btn-back" id="clearSelectionBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0; background: #dc3545;">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- ====== BOTONES DE ACCIÓN (ARRIBA) ====== -->
                         <div class="action-buttons-top" id="actionButtonsTop" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 10px;">
                             <button class="btn btn-small btn-secondary" id="downloadImageBtnTop" style="padding: 6px 12px; font-size: 0.7rem; margin: 0; flex: 1; min-width: 80px;">
@@ -499,6 +519,9 @@ class StockApp {
                             <table class="stock-table" id="resultsTable">
                                 <thead>
                                     <tr>
+                                        <th style="width: 30px; text-align: center;">
+                                            <input type="checkbox" id="selectAllCheckbox" style="cursor: pointer; width: 16px; height: 16px;">
+                                        </th>
                                         <th data-sort="ubicacion" style="cursor: pointer;">📍 Ubicación</th>
                                         <th data-sort="referencia" style="cursor: pointer;">Referencia</th>
                                         <th data-sort="descripcion" style="cursor: pointer;">Descripción</th>
@@ -506,7 +529,7 @@ class StockApp {
                                 </thead>
                                 <tbody id="resultsTableBody">
                                     <tr>
-                                        <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
+                                        <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
                                             No hay resultados para mostrar
                                         </td>
                                     </tr>
@@ -516,7 +539,7 @@ class StockApp {
                     </div>
                 </div>
 
-                <!-- ====== BOTÓN VOLVER ARRIBA (FLOATING) ====== -->
+                <!-- ====== BOTÓN VOLVER ARRIBA ====== -->
                 <button id="scrollTopBtn" class="scroll-top-btn" style="display: none;" title="Volver arriba">
                     ⬆
                 </button>
@@ -538,6 +561,13 @@ class StockApp {
             newSearchBtnTop: this.container.querySelector('#newSearchBtnTop'),
             actionButtonsTop: this.container.querySelector('#actionButtonsTop'),
             scrollTopBtn: this.container.querySelector('#scrollTopBtn'),
+            // Nuevos elementos de selección
+            selectionBar: this.container.querySelector('#selectionBar'),
+            selectionCount: this.container.querySelector('#selectionCount'),
+            selectAllCheckbox: this.container.querySelector('#selectAllCheckbox'),
+            downloadSelectedBtn: this.container.querySelector('#downloadSelectedBtn'),
+            shareSelectedBtn: this.container.querySelector('#shareSelectedBtn'),
+            clearSelectionBtn: this.container.querySelector('#clearSelectionBtn'),
         };
     }
 
@@ -561,36 +591,315 @@ class StockApp {
             this.elements.newSearchBtnTop.addEventListener('click', () => this._volver());
         }
 
+        // ===== NUEVO: Eventos de selección =====
+        if (this.elements.selectAllCheckbox) {
+            this.elements.selectAllCheckbox.addEventListener('change', (e) => {
+                this._seleccionarTodos(e.target.checked);
+            });
+        }
+
+        if (this.elements.downloadSelectedBtn) {
+            this.elements.downloadSelectedBtn.addEventListener('click', () => this._descargarSeleccionados());
+        }
+
+        if (this.elements.shareSelectedBtn) {
+            this.elements.shareSelectedBtn.addEventListener('click', () => this._compartirSeleccionados());
+        }
+
+        if (this.elements.clearSelectionBtn) {
+            this.elements.clearSelectionBtn.addEventListener('click', () => this._limpiarSeleccion());
+        }
+
         if (this.elements.resultsTable) {
             this.elements.resultsTable.addEventListener('click', (e) => {
                 const th = e.target.closest('th[data-sort]');
-                if (th) {
+                if (th && !this.modoSeleccion) {
                     this._ordenarPor(th.dataset.sort);
+                }
+                // Clic en checkbox de fila
+                const checkbox = e.target.closest('input[type="checkbox"][data-index]');
+                if (checkbox) {
+                    const index = parseInt(checkbox.dataset.index);
+                    this._toggleSeleccion(index);
                 }
             });
         }
 
-        // ===== NUEVO: Evento de scroll para mostrar/ocultar el botón =====
+        // ===== NUEVO: Long press para entrar en modo selección =====
+        if (this.elements.resultsTableBody) {
+            this.elements.resultsTableBody.addEventListener('mousedown', (e) => this._handlePointerDown(e));
+            this.elements.resultsTableBody.addEventListener('mouseup', () => this._handlePointerUp());
+            this.elements.resultsTableBody.addEventListener('mouseleave', () => this._handlePointerUp());
+            
+            this.elements.resultsTableBody.addEventListener('touchstart', (e) => this._handlePointerDown(e), { passive: true });
+            this.elements.resultsTableBody.addEventListener('touchend', () => this._handlePointerUp(), { passive: true });
+            this.elements.resultsTableBody.addEventListener('touchcancel', () => this._handlePointerUp(), { passive: true });
+        }
+
+        // Scroll
         if (this.elements.resultsTableWrapper) {
             this.elements.resultsTableWrapper.addEventListener('scroll', () => this._handleScroll());
         }
 
-        // ===== NUEVO: Botón volver arriba =====
         if (this.elements.scrollTopBtn) {
             this.elements.scrollTopBtn.addEventListener('click', () => this._scrollToTop());
         }
     }
 
-    // ===== NUEVO: Manejar el scroll =====
+    // ===== NUEVO: Manejo de long press =====
+    _handlePointerDown(e) {
+        // Si ya estamos en modo selección, no hacer nada
+        if (this.modoSeleccion) return;
+
+        // Buscar la fila más cercana
+        const row = e.target.closest('tr[data-index]');
+        if (!row) return;
+
+        const index = parseInt(row.dataset.index);
+        if (isNaN(index)) return;
+
+        // Iniciar timer para long press (500ms)
+        this.isLongPress = false;
+        this.longPressTimer = setTimeout(() => {
+            this.isLongPress = true;
+            this._activarModoSeleccion(index);
+        }, 500);
+    }
+
+    _handlePointerUp() {
+        clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
+    }
+
+    _activarModoSeleccion(index) {
+        this.modoSeleccion = true;
+        
+        // Seleccionar el elemento que activó el long press
+        this.seleccionados.clear();
+        this.seleccionados.add(index);
+        
+        // Mostrar barra de selección
+        if (this.elements.selectionBar) {
+            this.elements.selectionBar.style.display = 'flex';
+        }
+        
+        this._actualizarSeleccion();
+        mostrarMensaje(`📌 Modo selección activado. Toca para seleccionar más.`, 'info', 2000);
+    }
+
+    _toggleSeleccion(index) {
+        if (!this.modoSeleccion) {
+            // Si no estamos en modo selección, activarlo
+            this._activarModoSeleccion(index);
+            return;
+        }
+
+        if (this.seleccionados.has(index)) {
+            this.seleccionados.delete(index);
+        } else {
+            this.seleccionados.add(index);
+        }
+
+        // Si no hay seleccionados, salir del modo
+        if (this.seleccionados.size === 0) {
+            this._salirModoSeleccion();
+            return;
+        }
+
+        this._actualizarSeleccion();
+    }
+
+    _seleccionarTodos(seleccionar) {
+        if (seleccionar) {
+            this.modoSeleccion = true;
+            this.seleccionados.clear();
+            this.filtrados.forEach((_, index) => {
+                this.seleccionados.add(index);
+            });
+            if (this.elements.selectionBar) {
+                this.elements.selectionBar.style.display = 'flex';
+            }
+        } else {
+            this.seleccionados.clear();
+            this._salirModoSeleccion();
+        }
+        this._actualizarSeleccion();
+    }
+
+    _limpiarSeleccion() {
+        this.seleccionados.clear();
+        this._salirModoSeleccion();
+        this._actualizarSeleccion();
+        mostrarMensaje('🔄 Selección limpiada', 'info', 1500);
+    }
+
+    _salirModoSeleccion() {
+        this.modoSeleccion = false;
+        this.seleccionados.clear();
+        if (this.elements.selectionBar) {
+            this.elements.selectionBar.style.display = 'none';
+        }
+        if (this.elements.selectAllCheckbox) {
+            this.elements.selectAllCheckbox.checked = false;
+        }
+        this._actualizarSeleccion();
+    }
+
+    _actualizarSeleccion() {
+        const total = this.filtrados.length;
+        const seleccionados = this.seleccionados.size;
+
+        // Actualizar contador
+        if (this.elements.selectionCount) {
+            this.elements.selectionCount.textContent = `${seleccionados} de ${total} seleccionados`;
+        }
+
+        // Actualizar checkbox "Seleccionar todos"
+        if (this.elements.selectAllCheckbox) {
+            if (seleccionados === 0) {
+                this.elements.selectAllCheckbox.checked = false;
+                this.elements.selectAllCheckbox.indeterminate = false;
+            } else if (seleccionados === total) {
+                this.elements.selectAllCheckbox.checked = true;
+                this.elements.selectAllCheckbox.indeterminate = false;
+            } else {
+                this.elements.selectAllCheckbox.checked = false;
+                this.elements.selectAllCheckbox.indeterminate = true;
+            }
+        }
+
+        // Actualizar checkboxes de cada fila
+        const checkboxes = this.elements.resultsTableBody.querySelectorAll('input[type="checkbox"][data-index]');
+        checkboxes.forEach(cb => {
+            const index = parseInt(cb.dataset.index);
+            cb.checked = this.seleccionados.has(index);
+        });
+
+        // Resaltar filas seleccionadas
+        const rows = this.elements.resultsTableBody.querySelectorAll('tr[data-index]');
+        rows.forEach(row => {
+            const index = parseInt(row.dataset.index);
+            if (this.seleccionados.has(index)) {
+                row.style.background = '#fff8e1';
+                row.style.borderLeft = '3px solid #F2C200';
+            } else {
+                row.style.background = '';
+                row.style.borderLeft = '';
+            }
+        });
+
+        // Mostrar/ocultar barra de selección
+        if (this.elements.selectionBar) {
+            if (this.seleccionados.size > 0) {
+                this.elements.selectionBar.style.display = 'flex';
+            } else {
+                this.elements.selectionBar.style.display = 'none';
+            }
+        }
+    }
+
+    // ===== Obtener elementos seleccionados =====
+    _obtenerSeleccionados() {
+        const seleccionados = [];
+        const indices = Array.from(this.seleccionados).sort((a, b) => a - b);
+        indices.forEach(index => {
+            if (this.filtrados[index]) {
+                seleccionados.push(this.filtrados[index]);
+            }
+        });
+        return seleccionados;
+    }
+
+    // ===== Descargar seleccionados =====
+    async _descargarSeleccionados() {
+        const seleccionados = this._obtenerSeleccionados();
+        if (seleccionados.length === 0) {
+            mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
+            return;
+        }
+
+        mostrarMensaje(`🖼️ Generando imagen con ${seleccionados.length} elementos...`, 'info', 0);
+
+        try {
+            const imageData = await ResultsRenderer.generarImagen(
+                seleccionados,
+                this.terminoBusqueda,
+                this.categoriaBusqueda,
+                `Selección (${seleccionados.length} elementos)`
+            );
+
+            if (!imageData) {
+                mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
+                return;
+            }
+
+            const link = document.createElement('a');
+            const fecha = new Date().toISOString().slice(0, 10);
+            link.download = `stock-seleccion-${seleccionados.length}-${fecha}.png`;
+            link.href = imageData;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            mostrarMensaje(`📥 ${seleccionados.length} elementos descargados`, 'success', 2000);
+        } catch (error) {
+            console.error('[StockApp] Error:', error);
+            mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
+        }
+    }
+
+    // ===== Compartir seleccionados =====
+    async _compartirSeleccionados() {
+        const seleccionados = this._obtenerSeleccionados();
+        if (seleccionados.length === 0) {
+            mostrarMensaje('⚠️ No hay elementos seleccionados', 'info', 2000);
+            return;
+        }
+
+        mostrarMensaje(`🖼️ Generando imagen con ${seleccionados.length} elementos...`, 'info', 0);
+
+        try {
+            const imageData = await ResultsRenderer.generarImagen(
+                seleccionados,
+                this.terminoBusqueda,
+                this.categoriaBusqueda,
+                `Selección (${seleccionados.length} elementos)`
+            );
+
+            if (!imageData) {
+                mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
+                return;
+            }
+
+            const blob = await (await fetch(imageData)).blob();
+            const file = new File([blob], `stock-seleccion-${seleccionados.length}.png`, { type: 'image/png' });
+
+            if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                await navigator.share({
+                    title: 'Stock seleccionado',
+                    text: `📦 ${seleccionados.length} repuestos seleccionados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}`,
+                    files: [file]
+                });
+                mostrarMensaje('📤 Compartido correctamente', 'success', 2000);
+            } else {
+                mostrarMensaje('📱 Compartir no soportado, se descargará', 'info', 2000);
+                this._descargarSeleccionados();
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('[StockApp] Error:', error);
+                mostrarMensaje('❌ Error al compartir', 'error', 3000);
+            }
+        }
+    }
+
+    // ===== Scroll =====
     _handleScroll() {
         const wrapper = this.elements.resultsTableWrapper;
         const btn = this.elements.scrollTopBtn;
         if (!wrapper || !btn) return;
 
-        // Si el scroll supera el umbral, mostrar el botón
         if (wrapper.scrollTop > this.scrollThreshold) {
             btn.style.display = 'flex';
-            // Pequeña animación de entrada
             btn.style.opacity = '1';
             btn.style.transform = 'scale(1)';
         } else {
@@ -600,7 +909,6 @@ class StockApp {
         }
     }
 
-    // ===== NUEVO: Volver arriba =====
     _scrollToTop() {
         const wrapper = this.elements.resultsTableWrapper;
         if (wrapper) {
@@ -647,7 +955,9 @@ class StockApp {
         this.filtrados = this.loader.buscar(termino, categoria);
         this.cachedImage = null;
 
-        // Ocultar botón volver arriba al hacer nueva búsqueda
+        // Limpiar selección al hacer nueva búsqueda
+        this._salirModoSeleccion();
+
         if (this.elements.scrollTopBtn) {
             this.elements.scrollTopBtn.style.display = 'none';
         }
@@ -655,13 +965,11 @@ class StockApp {
         if (this.filtrados.length === 0) {
             mostrarMensaje(`🔍 No se encontraron resultados${termino ? ` para "${termino}"` : ''}${categoria ? ` en ${categoria}` : ''}`, 'info', 3000);
             
-            // Mantener clase 'centered' si no hay resultados
             const wrapper = this.container.querySelector('.stock-wrapper');
             if (wrapper) {
                 wrapper.classList.add('centered');
             }
 
-            // Habilitar swipe si no hay resultados
             if (window.navigation) {
                 window.navigation.enableSwipe();
             }
@@ -671,7 +979,7 @@ class StockApp {
             this.elements.resultsSubtitle.textContent = `🔍 0 resultados encontrados${termino ? ` para "${termino}"` : ''}${categoria ? ` en ${categoria}` : ''}`;
             this.elements.resultsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
+                    <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
                         🔍 No se encontraron resultados
                         <br><span style="font-size: 0.8rem;">Prueba con otros términos de búsqueda</span>
                     </td>
@@ -684,13 +992,11 @@ class StockApp {
     }
 
     async _mostrarResultados() {
-        // QUITAR la clase 'centered' del wrapper cuando hay resultados
         const wrapper = this.container.querySelector('.stock-wrapper');
         if (wrapper) {
             wrapper.classList.remove('centered');
         }
 
-        // Deshabilitar swipe al mostrar resultados
         if (window.navigation) {
             window.navigation.disableSwipe();
         }
@@ -711,7 +1017,7 @@ class StockApp {
         if (this.filtrados.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
+                    <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
                         No hay resultados para mostrar
                     </td>
                 </tr>
@@ -719,10 +1025,12 @@ class StockApp {
             return;
         }
 
-        // Mostrar TODOS los resultados en una sola tabla
-        tbody.innerHTML = this.filtrados.map(item => {
+        tbody.innerHTML = this.filtrados.map((item, index) => {
             return `
-                <tr>
+                <tr data-index="${index}" style="cursor: pointer; transition: background 0.2s;">
+                    <td style="text-align: center; width: 30px;">
+                        <input type="checkbox" data-index="${index}" style="cursor: pointer; width: 16px; height: 16px;">
+                    </td>
                     <td><code style="font-size: 0.7rem; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${item.ubicacion}</code></td>
                     <td><strong>${item.referencia}</strong></td>
                     <td>${item.descripcion}</td>
@@ -731,10 +1039,12 @@ class StockApp {
         }).join('');
 
         this.cachedImage = null;
+        this.seleccionados.clear();
+        this._salirModoSeleccion();
     }
 
     _ordenarPor(key) {
-        if (this.filtrados.length === 0) return;
+        if (this.filtrados.length === 0 || this.modoSeleccion) return;
         
         if (this._ultimaOrden === key) {
             this._ordenAscendente = !this._ordenAscendente;
@@ -756,6 +1066,8 @@ class StockApp {
         });
         
         this.cachedImage = null;
+        this.seleccionados.clear();
+        this._salirModoSeleccion();
         this._renderResultados();
         
         this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
@@ -763,19 +1075,18 @@ class StockApp {
         });
     }
 
-    async _generarImagen() {
-        if (this.filtrados.length === 0) {
+    async _generarImagen(resultados, titulo = 'Resultados de Búsqueda') {
+        if (!resultados || resultados.length === 0) {
             mostrarMensaje('⚠️ No hay datos para generar imagen', 'info', 3000);
             return null;
         }
 
         try {
             const imageData = await ResultsRenderer.generarImagen(
-                this.filtrados,
+                resultados,
                 this.terminoBusqueda,
                 this.categoriaBusqueda,
-                1,
-                this.filtrados.length
+                titulo
             );
             return imageData;
         } catch (error) {
@@ -793,11 +1104,8 @@ class StockApp {
 
         mostrarMensaje('🖼️ Generando imagen...', 'info', 0);
 
-        const imageData = await this._generarImagen();
-        if (!imageData) {
-            mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
-            return;
-        }
+        const imageData = await this._generarImagen(this.filtrados);
+        if (!imageData) return;
 
         try {
             const link = document.createElement('a');
@@ -822,11 +1130,8 @@ class StockApp {
 
         mostrarMensaje('🖼️ Generando imagen...', 'info', 0);
 
-        const imageData = await this._generarImagen();
-        if (!imageData) {
-            mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
-            return;
-        }
+        const imageData = await this._generarImagen(this.filtrados);
+        if (!imageData) return;
 
         try {
             const blob = await (await fetch(imageData)).blob();
@@ -852,18 +1157,18 @@ class StockApp {
     }
 
     _volver() {
-        // AÑADIR la clase 'centered' al wrapper cuando se vuelve al buscador
         const wrapper = this.container.querySelector('.stock-wrapper');
         if (wrapper) {
             wrapper.classList.add('centered');
         }
 
-        // Rehabilitar swipe al volver
         if (window.navigation) {
             window.navigation.enableSwipe();
         }
 
-        // Ocultar botón volver arriba
+        // Limpiar selección
+        this._salirModoSeleccion();
+
         if (this.elements.scrollTopBtn) {
             this.elements.scrollTopBtn.style.display = 'none';
         }
