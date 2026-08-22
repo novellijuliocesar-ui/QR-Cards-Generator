@@ -1,7 +1,7 @@
 // ========== SERVICE WORKER ==========
 // Versión: v4 - Soporte para QR Generator + Stock Search
 
-const CACHE_NAME = 'qr-stock-app-v4';
+const CACHE_NAME = 'QR-Cards-Generator-app-v4';
 const BASE_PATH = '/QR-Cards-Generator/';
 
 // ===== ASSETS PARA CACHEAR =====

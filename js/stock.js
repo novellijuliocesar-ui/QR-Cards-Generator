@@ -366,8 +366,6 @@ class StockLoader {
         const busquedaNormalizada = normalizarTexto(termino);
         const categoriaNormalizada = normalizarTexto(categoria);
 
-        console.log('[StockLoader] Buscando - término:', termino, 'categoría:', categoria);
-
         const resultados = this.datosNormalizados
             .filter(item => {
                 const norm = item._normalizado;
@@ -398,7 +396,6 @@ class StockLoader {
             });
 
         this.filtrados = resultados;
-        console.log(`[StockLoader] ✅ ${this.filtrados.length} resultados encontrados`);
         return this.filtrados;
     }
 
@@ -423,105 +420,113 @@ class StockApp {
         this.paginaActual = 1;
         this.resultadosPorPagina = 25;
         this.cachedImage = null;
+        this._ultimaOrden = null;
+        this._ordenAscendente = true;
 
         this.container = document.getElementById('stockPage');
         this.elements = {};
-        this.messageEl = null;
 
         this.init();
     }
 
     async init() {
         this._buildUI();
-        this._setupEventListeners();
         await this._cargarDatos();
         this._poblarFiltros();
+        this._setupEventListeners();
+        
+        // Añadir clase 'centered' al wrapper inicialmente (modo búsqueda)
+        const wrapper = this.container.querySelector('.stock-wrapper');
+        if (wrapper) {
+            wrapper.classList.add('centered');
+        }
     }
 
     _buildUI() {
+        // Envolvemos todo en un wrapper
         this.container.innerHTML = `
-            <!-- ====== PANTALLA DE BÚSQUEDA ====== -->
-            <div id="searchScreen" class="search-screen">
-                <div class="stock-header">
-                    <h1>🔧 Búsqueda de Repuestos</h1>
-                    <p>Consulta el stock del almacén</p>
-                </div>
-
-                <div id="stockMessage" class="message" role="alert" aria-live="polite"></div>
-
-                <div class="search-section">
-                    <label for="stockSearchInput">🔍 Buscar</label>
-                    <input 
-                        type="text" 
-                        id="stockSearchInput" 
-                        placeholder="Buscar por referencia, descripción o ubicación..." 
-                        autocomplete="off"
-                    >
-                </div>
-
-                <div class="filters-section">
-                    <div class="filter-group">
-                        <label for="categoryFilter">🏷️ Clasificación</label>
-                        <select id="categoryFilter">
-                            <option value="">-- Todas --</option>
-                        </select>
+            <div class="stock-wrapper centered">
+                <!-- ====== PANTALLA DE BÚSQUEDA ====== -->
+                <div id="searchScreen" class="stock-card">
+                    <div class="stock-header">
+                        <h1>🔧 Búsqueda de Repuestos</h1>
+                        <p>Consulta el stock del almacén</p>
                     </div>
-                </div>
 
-                <button class="btn btn-primary" id="searchBtn">
-                    🔍 Buscar Repuestos
-                </button>
-            </div>
-
-            <!-- ====== PANTALLA DE RESULTADOS ====== -->
-            <div id="resultsScreen" class="results-screen" style="display: none;">
-                <div class="stock-header" style="text-align: center; padding: 15px;">
-                    <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
-                    <p id="resultsSubtitle" style="margin: 4px 0 0; font-size: 0.8rem;">0 resultados encontrados</p>
-                </div>
-
-                <div class="stock-table-container" id="tableContainer">
-                    <div id="resultsTableWrapper" style="overflow-x: auto;">
-                        <table class="stock-table" id="resultsTable">
-                            <thead>
-                                <tr>
-                                    <th data-sort="ubicacion" style="cursor: pointer;">📍 Ubicación</th>
-                                    <th data-sort="referencia" style="cursor: pointer;">Referencia</th>
-                                    <th data-sort="descripcion" style="cursor: pointer;">Descripción</th>
-                                </tr>
-                            </thead>
-                            <tbody id="resultsTableBody">
-                                <tr>
-                                    <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
-                                        No hay resultados para mostrar
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="stock-search-section">
+                        <label for="stockSearchInput">🔍 Buscar</label>
+                        <input 
+                            type="text" 
+                            id="stockSearchInput" 
+                            placeholder="Buscar por referencia, descripción o ubicación..." 
+                            autocomplete="off"
+                        >
                     </div>
-                    
-                    <!-- Paginación -->
-                    <div id="paginationControls" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0 0; flex-wrap: wrap; gap: 8px;">
-                        <span id="paginationInfo" style="font-size: 0.8rem; color: #666;">Mostrando 0 de 0</span>
-                        <div style="display: flex; gap: 6px;">
-                            <button class="btn btn-small btn-back" id="prevPageBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">◀ Anterior</button>
-                            <span id="pageIndicator" style="font-size: 0.8rem; color: #333; display: flex; align-items: center; padding: 0 8px;">Página 1</span>
-                            <button class="btn btn-small btn-back" id="nextPageBtn" style="padding: 4px 12px; font-size: 0.7rem; margin: 0;">Siguiente ▶</button>
+
+                    <div class="stock-filters-section">
+                        <div class="stock-filter-group">
+                            <label for="categoryFilter">🏷️ Clasificación</label>
+                            <select id="categoryFilter">
+                                <option value="">-- Todas --</option>
+                            </select>
                         </div>
                     </div>
+
+                    <button class="stock-btn stock-btn-primary" id="searchBtn">
+                        🔍 Buscar Repuestos
+                    </button>
                 </div>
 
-                <!-- ====== BOTONES DE ACCIÓN ====== -->
-                <div class="action-buttons" id="actionButtons" style="margin-top: 16px; display: none;">
-                    <button class="btn btn-secondary" id="downloadImageBtn">
-                        📥 Descargar imagen
-                    </button>
-                    <button class="btn btn-success" id="shareImageBtn">
-                        📤 Compartir imagen
-                    </button>
-                    <button class="btn btn-back" id="newSearchBtn">
-                        ◀ Nueva búsqueda
-                    </button>
+                <!-- ====== PANTALLA DE RESULTADOS ====== -->
+                <div id="resultsScreen" class="stock-card" style="display: none;">
+                    <div class="stock-header" style="text-align: center; padding: 15px;">
+                        <h1 style="margin: 0; font-size: 1.2rem;">📊 Resultados de Búsqueda</h1>
+                        <p id="resultsSubtitle" style="margin: 4px 0 10px 0; font-size: 0.8rem;">0 resultados encontrados</p>
+                        
+                        <!-- ====== CONTROLES DE PAGINACIÓN (ARRIBA) ====== -->
+                        <div id="paginationControlsTop" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; flex-wrap: wrap; gap: 8px; border-top: 1px solid rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.3);">
+                            <span id="paginationInfoTop" style="font-size: 0.75rem; color: #1a1a2e; font-weight: 600;">Mostrando 0 de 0</span>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn btn-small btn-back" id="prevPageBtnTop" style="padding: 4px 12px; font-size: 0.7rem; margin: 0; background: rgba(26,26,46,0.8); color: white;">◀</button>
+                                <span id="pageIndicatorTop" style="font-size: 0.75rem; color: #1a1a2e; font-weight: 600; display: flex; align-items: center; padding: 0 8px;">Página 1</span>
+                                <button class="btn btn-small btn-back" id="nextPageBtnTop" style="padding: 4px 12px; font-size: 0.7rem; margin: 0; background: rgba(26,26,46,0.8); color: white;">▶</button>
+                            </div>
+                        </div>
+                        
+                        <!-- ====== BOTONES DE ACCIÓN (ARRIBA) ====== -->
+                        <div class="action-buttons-top" id="actionButtonsTop" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center;">
+                            <button class="btn btn-small btn-secondary" id="downloadImageBtnTop" style="padding: 6px 12px; font-size: 0.7rem; margin: 0; flex: 1; min-width: 80px;">
+                                📥 Descargar
+                            </button>
+                            <button class="btn btn-small btn-success" id="shareImageBtnTop" style="padding: 6px 12px; font-size: 0.7rem; margin: 0; flex: 1; min-width: 80px;">
+                                📤 Compartir
+                            </button>
+                            <button class="btn btn-small btn-back" id="newSearchBtnTop" style="padding: 6px 12px; font-size: 0.7rem; margin: 0; flex: 1; min-width: 80px;">
+                                ◀ Nueva
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="stock-table-container" id="tableContainer">
+                        <div id="resultsTableWrapper" style="overflow-x: auto;">
+                            <table class="stock-table" id="resultsTable">
+                                <thead>
+                                    <tr>
+                                        <th data-sort="ubicacion" style="cursor: pointer;">📍 Ubicación</th>
+                                        <th data-sort="referencia" style="cursor: pointer;">Referencia</th>
+                                        <th data-sort="descripcion" style="cursor: pointer;">Descripción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody">
+                                    <tr>
+                                        <td colspan="3" style="text-align: center; padding: 40px; color: #999;">
+                                            No hay resultados para mostrar
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -535,55 +540,65 @@ class StockApp {
             searchInput: this.container.querySelector('#stockSearchInput'),
             categoryFilter: this.container.querySelector('#categoryFilter'),
             searchBtn: this.container.querySelector('#searchBtn'),
-            prevPageBtn: this.container.querySelector('#prevPageBtn'),
-            nextPageBtn: this.container.querySelector('#nextPageBtn'),
-            pageIndicator: this.container.querySelector('#pageIndicator'),
-            paginationInfo: this.container.querySelector('#paginationInfo'),
-            downloadImageBtn: this.container.querySelector('#downloadImageBtn'),
-            shareImageBtn: this.container.querySelector('#shareImageBtn'),
-            newSearchBtn: this.container.querySelector('#newSearchBtn'),
-            actionButtons: this.container.querySelector('#actionButtons'),
+            prevPageBtnTop: this.container.querySelector('#prevPageBtnTop'),
+            nextPageBtnTop: this.container.querySelector('#nextPageBtnTop'),
+            pageIndicatorTop: this.container.querySelector('#pageIndicatorTop'),
+            paginationInfoTop: this.container.querySelector('#paginationInfoTop'),
+            downloadImageBtnTop: this.container.querySelector('#downloadImageBtnTop'),
+            shareImageBtnTop: this.container.querySelector('#shareImageBtnTop'),
+            newSearchBtnTop: this.container.querySelector('#newSearchBtnTop'),
+            actionButtonsTop: this.container.querySelector('#actionButtonsTop'),
         };
-        this.messageEl = this.container.querySelector('#stockMessage');
     }
 
     _setupEventListeners() {
-        this.elements.searchBtn.addEventListener('click', () => this._buscar());
-        this.elements.searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this._buscar();
-            }
-        });
-        this.elements.newSearchBtn.addEventListener('click', () => this._volver());
-        this.elements.prevPageBtn.addEventListener('click', () => this._cambiarPagina(-1));
-        this.elements.nextPageBtn.addEventListener('click', () => this._cambiarPagina(1));
-        this.elements.downloadImageBtn.addEventListener('click', () => this._descargarImagen());
-        this.elements.shareImageBtn.addEventListener('click', () => this._compartirImagen());
-
-        this.elements.resultsTable.querySelectorAll('th[data-sort]').forEach(th => {
-            th.addEventListener('click', () => {
-                const key = th.dataset.sort;
-                this._ordenarPor(key);
+        if (this.elements.searchBtn) {
+            this.elements.searchBtn.addEventListener('click', () => this._buscar());
+        }
+        if (this.elements.searchInput) {
+            this.elements.searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this._buscar();
             });
-        });
+        }
 
-        console.log('[StockApp] Selector de categorías inicializado');
+        if (this.elements.prevPageBtnTop) {
+            this.elements.prevPageBtnTop.addEventListener('click', () => this._cambiarPagina(-1));
+        }
+        if (this.elements.nextPageBtnTop) {
+            this.elements.nextPageBtnTop.addEventListener('click', () => this._cambiarPagina(1));
+        }
+
+        if (this.elements.downloadImageBtnTop) {
+            this.elements.downloadImageBtnTop.addEventListener('click', () => this._descargarImagen());
+        }
+        if (this.elements.shareImageBtnTop) {
+            this.elements.shareImageBtnTop.addEventListener('click', () => this._compartirImagen());
+        }
+        if (this.elements.newSearchBtnTop) {
+            this.elements.newSearchBtnTop.addEventListener('click', () => this._volver());
+        }
+
+        if (this.elements.resultsTable) {
+            this.elements.resultsTable.addEventListener('click', (e) => {
+                const th = e.target.closest('th[data-sort]');
+                if (th) {
+                    this._ordenarPor(th.dataset.sort);
+                }
+            });
+        }
     }
 
     async _cargarDatos() {
-        this._showMessage('📂 Cargando datos de repuestos...', 'info', 0);
+        mostrarMensaje('📂 Cargando datos de repuestos...', 'info', 0);
         this.datos = await this.loader.cargar();
         if (this.loader.usaEjemplo) {
-            this._showMessage(`⚠️ Usando datos de ejemplo (${this.datos.length} repuestos)`, 'info', 4000);
+            mostrarMensaje(`⚠️ Usando datos de ejemplo (${this.datos.length} repuestos)`, 'info', 4000);
         }
-        console.log('[StockApp] Categorías cargadas:', this.loader.obtenerCategorias());
     }
 
     _poblarFiltros() {
         const select = this.elements.categoryFilter;
         const categorias = this.loader.obtenerCategorias();
-        
-        console.log('[StockApp] Poblando filtros con categorías:', categorias);
         
         select.innerHTML = '<option value="">-- Todas --</option>';
         categorias.forEach(cat => {
@@ -598,10 +613,8 @@ class StockApp {
         const termino = this.elements.searchInput.value.trim();
         const categoria = this.elements.categoryFilter.value;
 
-        console.log('[StockApp] 🔍 Buscando:', { termino, categoria });
-
         if (!termino && !categoria) {
-            this._showMessage('⚠️ Introduce un término de búsqueda o selecciona una categoría', 'info', 3000);
+            mostrarMensaje('⚠️ Introduce un término de búsqueda o selecciona una categoría', 'info', 3000);
             return;
         }
 
@@ -612,10 +625,15 @@ class StockApp {
         this.paginaActual = 1;
         this.cachedImage = null;
 
-        console.log('[StockApp] Resultados encontrados:', this.filtrados.length);
-
         if (this.filtrados.length === 0) {
-            this._showMessage(`🔍 No se encontraron resultados${termino ? ` para "${termino}"` : ''}${categoria ? ` en ${categoria}` : ''}`, 'info', 3000);
+            mostrarMensaje(`🔍 No se encontraron resultados${termino ? ` para "${termino}"` : ''}${categoria ? ` en ${categoria}` : ''}`, 'info', 3000);
+            
+            // Mantener clase 'centered' si no hay resultados
+            const wrapper = this.container.querySelector('.stock-wrapper');
+            if (wrapper) {
+                wrapper.classList.add('centered');
+            }
+            
             this.elements.resultsScreen.style.display = 'block';
             this.elements.searchScreen.style.display = 'none';
             this.elements.resultsSubtitle.textContent = `🔍 0 resultados encontrados${termino ? ` para "${termino}"` : ''}${categoria ? ` en ${categoria}` : ''}`;
@@ -627,28 +645,48 @@ class StockApp {
                     </td>
                 </tr>
             `;
-            this.elements.paginationInfo.textContent = 'Mostrando 0 de 0';
-            this.elements.pageIndicator.textContent = 'Página 1';
-            this.elements.prevPageBtn.style.display = 'none';
-            this.elements.nextPageBtn.style.display = 'none';
-            this.elements.actionButtons.style.display = 'none';
+            this._actualizarPaginacionTop(0, 0, 1, 1);
             return;
         }
 
-        this.elements.actionButtons.style.display = 'flex';
         await this._mostrarResultados();
     }
 
     async _mostrarResultados() {
+        // QUITAR la clase 'centered' del wrapper cuando hay resultados
+        const wrapper = this.container.querySelector('.stock-wrapper');
+        if (wrapper) {
+            wrapper.classList.remove('centered');
+        }
+
         this.elements.searchScreen.style.display = 'none';
         this.elements.resultsScreen.style.display = 'block';
-        this.elements.actionButtons.style.display = 'flex';
 
         this.elements.resultsSubtitle.textContent = 
             `🔍 ${this.filtrados.length} resultados encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''}${this.categoriaBusqueda ? ` en ${this.categoriaBusqueda}` : ''}`;
 
         this._renderPagina();
-        this._showMessage(`✅ ${this.filtrados.length} resultados encontrados`, 'success', 2000);
+        mostrarMensaje(`✅ ${this.filtrados.length} resultados encontrados`, 'success', 2000);
+    }
+
+    _actualizarPaginacionTop(inicio, fin, total, totalPaginas) {
+        const info = this.elements.paginationInfoTop;
+        const indicator = this.elements.pageIndicatorTop;
+        const prevBtn = this.elements.prevPageBtnTop;
+        const nextBtn = this.elements.nextPageBtnTop;
+
+        if (info) {
+            info.textContent = total > 0 ? `Mostrando ${inicio + 1}-${fin} de ${total}` : 'Mostrando 0 de 0';
+        }
+        if (indicator) {
+            indicator.textContent = `Página ${this.paginaActual} de ${totalPaginas || 1}`;
+        }
+        if (prevBtn) {
+            prevBtn.style.display = this.paginaActual > 1 ? 'inline-block' : 'none';
+        }
+        if (nextBtn) {
+            nextBtn.style.display = this.paginaActual < totalPaginas ? 'inline-block' : 'none';
+        }
     }
 
     _renderPagina() {
@@ -656,6 +694,7 @@ class StockApp {
         const porPagina = this.resultadosPorPagina;
         const totalPaginas = Math.ceil(total / porPagina);
         
+        if (this.paginaActual < 1) this.paginaActual = 1;
         if (this.paginaActual > totalPaginas) {
             this.paginaActual = totalPaginas || 1;
         }
@@ -686,12 +725,7 @@ class StockApp {
             }).join('');
         }
 
-        this.elements.paginationInfo.textContent = `Mostrando ${inicio + 1}-${fin} de ${total} resultados`;
-        this.elements.pageIndicator.textContent = `Página ${this.paginaActual} de ${totalPaginas || 1}`;
-        
-        this.elements.prevPageBtn.style.display = this.paginaActual > 1 ? 'inline-block' : 'none';
-        this.elements.nextPageBtn.style.display = this.paginaActual < totalPaginas ? 'inline-block' : 'none';
-        
+        this._actualizarPaginacionTop(inicio, fin, total, totalPaginas);
         this.cachedImage = null;
     }
 
@@ -700,15 +734,14 @@ class StockApp {
         const totalPaginas = Math.ceil(total / this.resultadosPorPagina);
         const nuevaPagina = this.paginaActual + delta;
         
-        if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+        if (nuevaPagina < 1 || nuevaPagina > totalPaginas) {
+            mostrarMensaje(`⚠️ Ya estás en la ${nuevaPagina < 1 ? 'primera' : 'última'} página`, 'info', 2000);
+            return;
+        }
         
         this.paginaActual = nuevaPagina;
         this._renderPagina();
-        
-        const tableContainer = this.container.querySelector('#tableContainer');
-        if (tableContainer) {
-            tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        this.cachedImage = null;
     }
 
     _ordenarPor(key) {
@@ -726,10 +759,8 @@ class StockApp {
         this.filtrados.sort((a, b) => {
             let valA = a[key] || '';
             let valB = b[key] || '';
-            
             if (typeof valA === 'string') valA = valA.toLowerCase();
             if (typeof valB === 'string') valB = valB.toLowerCase();
-            
             if (valA < valB) return asc ? -1 : 1;
             if (valA > valB) return asc ? 1 : -1;
             return 0;
@@ -752,7 +783,7 @@ class StockApp {
         const paginaResultados = this.filtrados.slice(inicio, fin);
 
         if (paginaResultados.length === 0) {
-            this._showMessage('⚠️ No hay datos en esta página para generar imagen', 'info', 3000);
+            mostrarMensaje('⚠️ No hay datos en esta página para generar imagen', 'info', 3000);
             return null;
         }
 
@@ -767,22 +798,22 @@ class StockApp {
             return imageData;
         } catch (error) {
             console.error('[StockApp] Error generando imagen:', error);
-            this._showMessage('❌ Error al generar la imagen', 'error', 3000);
+            mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
             return null;
         }
     }
 
     async _descargarImagen() {
         if (this.filtrados.length === 0) {
-            this._showMessage('⚠️ No hay resultados para descargar', 'info', 3000);
+            mostrarMensaje('⚠️ No hay resultados para descargar', 'info', 3000);
             return;
         }
 
-        this._showMessage('🖼️ Generando imagen...', 'info', 0);
+        mostrarMensaje('🖼️ Generando imagen...', 'info', 0);
 
         const imageData = await this._generarImagen();
         if (!imageData) {
-            this._showMessage('❌ Error al generar la imagen', 'error', 3000);
+            mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
             return;
         }
 
@@ -794,24 +825,24 @@ class StockApp {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            this._showMessage('📥 Imagen descargada', 'success', 2000);
+            mostrarMensaje('📥 Imagen descargada', 'success', 2000);
         } catch (error) {
             console.error('[StockApp] Error descargando:', error);
-            this._showMessage('❌ Error al descargar', 'error', 3000);
+            mostrarMensaje('❌ Error al descargar', 'error', 3000);
         }
     }
 
     async _compartirImagen() {
         if (this.filtrados.length === 0) {
-            this._showMessage('⚠️ No hay resultados para compartir', 'info', 3000);
+            mostrarMensaje('⚠️ No hay resultados para compartir', 'info', 3000);
             return;
         }
 
-        this._showMessage('🖼️ Generando imagen...', 'info', 0);
+        mostrarMensaje('🖼️ Generando imagen...', 'info', 0);
 
         const imageData = await this._generarImagen();
         if (!imageData) {
-            this._showMessage('❌ Error al generar la imagen', 'error', 3000);
+            mostrarMensaje('❌ Error al generar la imagen', 'error', 3000);
             return;
         }
 
@@ -825,21 +856,26 @@ class StockApp {
                     text: `📦 ${this.filtrados.length} repuestos encontrados${this.terminoBusqueda ? ` para "${this.terminoBusqueda}"` : ''} (Página ${this.paginaActual})`,
                     files: [file]
                 });
-                this._showMessage('📤 Compartido correctamente', 'success', 2000);
+                mostrarMensaje('📤 Compartido correctamente', 'success', 2000);
             } else {
-                this._showMessage('📱 Compartir no soportado, se descargará', 'info', 2000);
+                mostrarMensaje('📱 Compartir no soportado, se descargará', 'info', 2000);
                 this._descargarImagen();
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error('[StockApp] Error compartiendo:', error);
-                this._showMessage('❌ Error al compartir', 'error', 3000);
+                mostrarMensaje('❌ Error al compartir', 'error', 3000);
             }
         }
     }
 
     _volver() {
-        // Limpiar los campos de búsqueda
+        // AÑADIR la clase 'centered' al wrapper cuando se vuelve al buscador
+        const wrapper = this.container.querySelector('.stock-wrapper');
+        if (wrapper) {
+            wrapper.classList.add('centered');
+        }
+
         if (this.elements.searchInput) {
             this.elements.searchInput.value = '';
         }
@@ -847,40 +883,24 @@ class StockApp {
             this.elements.categoryFilter.value = '';
         }
         
-        // Ocultar resultados y mostrar búsqueda
         this.elements.resultsScreen.style.display = 'none';
         this.elements.searchScreen.style.display = 'block';
         
-        // Limpiar datos de resultados
         this.filtrados = [];
         this.paginaActual = 1;
         this.cachedImage = null;
         this._ultimaOrden = null;
         this._ordenAscendente = true;
-        this.elements.actionButtons.style.display = 'none';
         this.terminoBusqueda = '';
         this.categoriaBusqueda = '';
         
-        // Limpiar mensajes
-        this._showMessage('🔄 Campos limpiados. Realiza una nueva búsqueda.', 'info', 2000);
-    }
-
-    _showMessage(texto, tipo = 'info', duration = 3000) {
-        if (!this.messageEl) return;
-        this.messageEl.textContent = texto;
-        this.messageEl.className = `message message-${tipo}`;
-        this.messageEl.style.display = 'block';
-        
-        if (duration > 0) {
-            setTimeout(() => {
-                this.messageEl.style.display = 'none';
-            }, duration);
-        }
+        mostrarMensaje('🔄 Campos limpiados. Realiza una nueva búsqueda.', 'info', 2000);
     }
 }
 
 // ========== INICIALIZAR ==========
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[StockApp] DOM cargado, iniciando...');
     setTimeout(() => {
         window.stockApp = new StockApp();
     }, 150);
